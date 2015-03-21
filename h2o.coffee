@@ -24,32 +24,6 @@ http = (method, path, opts, go) ->
         contentType: no
         processData: no
 
-  req.done (data, status, xhr) ->
-
-    try
-      go null, data
-    catch error
-      go new Flow.Error "Error processing #{method} #{path}", error
-
-  req.fail (xhr, status, error) ->
-
-    response = xhr.responseJSON
-    
-    cause = if response?.__meta?.schema_type is 'H2OError'
-      serverError = new Flow.Error response.exception_msg
-      serverError.stack = "#{response.dev_msg} (#{response.exception_type})" + "\n  " + response.stacktrace.join "\n  "
-      serverError
-    else if error?.message
-      new Flow.Error error.message
-    else if status is 0
-      new Flow.Error 'Could not connect to H2O'
-    else if isString error
-      new Flow.Error error
-    else
-      new Flow.Error 'Unknown error'
-
-    go new Flow.Error "Error calling #{method} #{path} with opts #{JSON.stringify opts}", cause
-
 doUpload = (path, formData, go) -> http 'UPLOAD', path, formData, go
 doDelete = (path, go) -> http 'DELETE', path, null, go
 
@@ -98,21 +72,50 @@ unwrap = (go, transform) ->
       go null, transform result
 
 
+class H2OError extends Error
+  constructor: (@message, cause) ->
+    @cause = cause if cause
+  remoteMessage: null
+  remoteType: null
+  remoteStack: null
+  cause: null
 
-lib.connect = (baseUrl='http://localhost:54321') ->
+isString = (a) -> 
+  ('string' is typeof a) or (a instanceof String)
 
-  doGet = (url, go) ->
+lib.connect = (host='http://localhost:54321') ->
+  respond = (method, address, opts, go) ->
+    (error, response, body) ->
+      if error
+        cause = if body?.__meta?.schema_type is 'H2OError'
+          h2oError = new H2OError body.exception_msg
+          h2oError.remoteMessage = body.dev_msg
+          h2oError.remoteType = body.exception_type
+          h2oError.remoteStack = body.stacktrace.join '\n'
+          h2oError
+        else if error?.message
+          new H2OError error.message
+        else if isString error
+          new H2OError error
+        else
+          new H2OError "Unknown error: #{JSON.stringify error}"
+
+        go new H2OError "Error calling #{method} #{host}#{address} with opts #{JSON.stringify opts}.", cause
+      else
+        go error, body
+
+  doGet = (address, go) ->
     opts = 
-      url: "#{baseUrl}#{url}"
+      url: "#{host}#{address}"
       json: yes
-    request opts, (error, response, body) -> go error, body
+    request opts, respond 'GET', address, {}, go
 
-  doPost = (url, form, go) ->
+  doPost = (address, form, go) ->
     opts =
-      url: "#{baseUrl}#{url}"
+      url: "#{host}#{address}"
       form: form
       json: yes
-    request.post opts, (error, response, body) -> go error, body
+    request.post opts, respond 'POST', address, form, go
 
   createFrame = (opts, go) ->
     doPost '/2/CreateFrame.json', opts, go
