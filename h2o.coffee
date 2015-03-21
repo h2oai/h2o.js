@@ -205,7 +205,7 @@ lib.connect = (baseUrl='http://localhost:54321') ->
       column_types: encodeArrayForPost columnTypes
     doPost '/2/ParseSetup.json', opts, go
 
-  parse = (sourceKeys, destinationKey, parseType, separator, columnCount, useSingleQuotes, columnNames, columnTypes, deleteOnDone, checkHeader, chunkSize, go) ->
+  parseFiles = (sourceKeys, destinationKey, parseType, separator, columnCount, useSingleQuotes, columnNames, columnTypes, deleteOnDone, checkHeader, chunkSize, go) ->
     opts =
       destination_key: destinationKey
       source_keys: encodeArrayForPost sourceKeys
@@ -257,7 +257,7 @@ lib.connect = (baseUrl='http://localhost:54321') ->
   requestModelInputValidation = (algo, parameters, go) ->
     doPost "/3/ModelBuilders.json/#{algo}/parameters", (encodeObjectForPost parameters), go
 
-  buildModel = (algo, parameters, go) ->
+  createModel = (algo, parameters, go) ->
     _.trackEvent 'model', algo
     doPost "/3/ModelBuilders.json/#{algo}", (encodeObjectForPost parameters), go
 
@@ -326,10 +326,6 @@ lib.connect = (baseUrl='http://localhost:54321') ->
     doGet '/2/JStack.json', go
 
   #TODO
-  requestRemoveAll = (go) ->
-    doDelete '/1/RemoveAll.json', go
-
-  #TODO
   requestLogFile = (nodeIndex, fileType, go) ->
     doGet "/3/Logs.json/nodes/#{nodeIndex}/files/#{fileType}", go
 
@@ -347,21 +343,57 @@ lib.connect = (baseUrl='http://localhost:54321') ->
   getSchema = (name, go) ->
     doGet "/1/Metadata/schemas.json/#{encodeURIComponent name}", go
 
-  #TODO
-  requestEndpoints = (go) ->
+  getEndpoints = (go) ->
     doGet '/1/Metadata/endpoints.json', go
 
-  #TODO
-  requestEndpoint = (index, go) ->
+  getEndpoint = (index, go) ->
     doGet "/1/Metadata/endpoints.json/#{index}", go
 
-
+  deleteAll = (go) ->
+    doDelete '/1/RemoveAll.json', go
 
   shutdown = (go) ->
     doPost "/2/Shutdown.json", {}, go
 
+  # Files
+  importFile: importFile #TODO handle multiple files for consistency with parseFiles()
+  uploadFile: uploadFile #TODO handle multiple files for consistency with parseFiles()
+  parseFiles: parseFiles
+
+  # Frames
+  createFrame: createFrame
+  splitFrame: splitFrame
+  getFrames: getFrames
+  getFrame: getFrame
+  deleteFrame: deleteFrame
+
+  # Summary
+  getColumnSummary: getColumnSummary
+
+  # Models
+  createModel: createModel
+  getModels: getModels
+  getModel: getModel
+  deleteModel: deleteModel
+
+  # Predictions
+  predict: predict
+  getPredictions: getPredictions
+  getPrediction: getPrediction
+
+  # Jobs
+  getJobs: getJobs
+  getJob: getJob
+  cancelJob: cancelJob
+
+  # Meta
   getSchemas: getSchemas
   getSchema: getSchema
+  getEndpoints: getEndpoints
+  getEndpoint: getEndpoint
+
+  # Clean up
+  deleteAll: deleteAll
   shutdown: shutdown
 
 module.exports = lib
