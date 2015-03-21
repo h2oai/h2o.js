@@ -1,7 +1,31 @@
+fs = require 'fs'
 request = require 'request'
 
-
 lib = {}
+
+isString = (a) ->
+  ('string' is typeof a) or (a instanceof String)
+
+isArray = (a) ->
+  a instanceof Array
+
+isFunction = (a) ->
+  'function' is typeof a
+
+head = (a) ->
+  if a?.length
+    a[0]
+  else
+    undefined
+
+proceed = (go, transform) ->
+  (error, result) ->
+    if error
+      go error
+    else
+      go null, transform result
+
+
 
 #
 # Proxy
@@ -24,8 +48,6 @@ http = (method, path, opts, go) ->
         contentType: no
         processData: no
 
-doUpload = (path, formData, go) -> http 'UPLOAD', path, formData, go
-doDelete = (path, go) -> http 'DELETE', path, null, go
 
 mapWithKey = (obj, f) ->
   result = []
@@ -35,7 +57,7 @@ mapWithKey = (obj, f) ->
 
 composePath = (path, opts) ->
   if opts
-    params = mapWithKey opts, (v, k) -> "#{k}=#{v}"
+    params = mapWithKey opts, (value, key) -> "#{key}=#{value}"
     path + '?' + join params, '&'
   else
     path
@@ -48,20 +70,20 @@ encodeArrayForPost = (array) ->
     if array.length is 0
       null 
     else 
-      "[#{join (map array, (element) -> if isNumber element then element else "\"#{element}\""), ','}]"
+      "[#{join array.map((element) -> if isNumber element then element else "\"#{element}\""), ','}]"
   else
     null
 
 encodeObject = (source) ->
   target = {}
-  for k, v of source
-    target[k] = encodeURIComponent v
+  for key, value of source
+    target[key] = encodeURIComponent value
   target
 
 encodeObjectForPost = (source) ->
   target = {}
-  for k, v of source
-    target[k] = if isArray v then encodeArrayForPost v else v
+  for key, value of source
+    target[key] = if isArray value then encodeArrayForPost value else value
   target
 
 unwrap = (go, transform) ->
@@ -80,11 +102,8 @@ class H2OError extends Error
   remoteStack: null
   cause: null
 
-isString = (a) -> 
-  ('string' is typeof a) or (a instanceof String)
-
 lib.connect = (host='http://localhost:54321') ->
-  respond = (method, address, opts, go) ->
+  respond = (method, route, opts, go) ->
     (error, response, body) ->
       if error
         cause = if body?.__meta?.schema_type is 'H2OError'
@@ -100,22 +119,35 @@ lib.connect = (host='http://localhost:54321') ->
         else
           new H2OError "Unknown error: #{JSON.stringify error}"
 
-        go new H2OError "Error calling #{method} #{host}#{address} with opts #{JSON.stringify opts}.", cause
+        parameters = if opts then " with opts #{JSON.stringify opts}" else ''
+        go new H2OError "Error calling #{method} #{host}#{route}#{parameters}.", cause
       else
         go error, body
 
-  doGet = (address, go) ->
+  doGet = (route, go) ->
     opts = 
-      url: "#{host}#{address}"
+      url: "#{host}#{route}"
       json: yes
-    request opts, respond 'GET', address, {}, go
+    request opts, respond 'GET', route, null, go
 
-  doPost = (address, form, go) ->
+  doPost = (route, form, go) ->
     opts =
-      url: "#{host}#{address}"
+      url: "#{host}#{route}"
       form: form
       json: yes
-    request.post opts, respond 'POST', address, form, go
+    request.post opts, respond 'POST', route, form, go
+
+  doDelete = (route, go) ->
+    opts =
+      url: "#{host}#{route}"
+      json: yes
+    request.del opts, respond 'DELETE', route, null, go
+
+  doUpload = (route, formData, go) ->
+    opts =
+      url: "#{host}#{route}"
+      formData: formData
+    request.post opts, respond 'POST', route, form, go
 
   createFrame = (opts, go) ->
     doPost '/2/CreateFrame.json', opts, go
@@ -135,54 +167,33 @@ lib.connect = (host='http://localhost:54321') ->
         go null, result.frames
 
   getFrame = (key, go) ->
-    doGet "/3/Frames.json/#{encodeURIComponent key}", (error, result) ->
-      if error
-        go error
-      else
-        go null, head result.frames
+    doGet "/3/Frames.json/#{encodeURIComponent key}", proceed go, (result) ->
+      head result.frames
 
   deleteFrame = (key, go) ->
     doDelete "/3/Frames.json/#{encodeURIComponent key}", go
 
   getRDDs = (go) ->
-    doGet '/3/RDDs.json', (error, result) ->
-      if error
-        go error
-      else
-        go null, result.rdds
+    doGet '/3/RDDs.json', proceed go, (result) -> result.rdds
 
   getColumnSummary = (key, column, go) ->
-    doGet "/3/Frames.json/#{encodeURIComponent key}/columns/#{encodeURIComponent column}/summary", (error, result) ->
-      if error
-        go error
-      else
-        go null, head result.frames
+    doGet "/3/Frames.json/#{encodeURIComponent key}/columns/#{encodeURIComponent column}/summary", proceed go, (result) ->
+      head result.frames
 
   getJobs = (go) ->
-    doGet '/2/Jobs.json', (error, result) ->
-      if error
-        go new Flow.Error 'Error fetching jobs', error
-      else
-        go null, result.jobs 
+    doGet '/2/Jobs.json', proceed go, (result) ->
+      result.jobs
 
   getJob = (key, go) ->
-    doGet "/2/Jobs.json/#{encodeURIComponent key}", (error, result) ->
-      if error
-        go new Flow.Error "Error fetching job '#{key}'", error
-      else
-        go null, head result.jobs
+    doGet "/2/Jobs.json/#{encodeURIComponent key}", proceed go, (result) ->
+      head result.jobs
 
   cancelJob = (key, go) ->
-    doPost "/2/Jobs.json/#{encodeURIComponent key}/cancel", {}, (error, result) ->
-      if error
-        go new Flow.Error "Error canceling job '#{key}'", error
-      else
-        debug result
-        go null
+    doPost "/2/Jobs.json/#{encodeURIComponent key}/cancel", {}, go
 
   #FIXME
   requestImportFiles = (paths, go) ->
-    tasks = map paths, (path) ->
+    tasks = paths.map (path) ->
       (go) ->
         requestImportFile path, go
     (Flow.Async.iterate tasks) go
@@ -235,18 +246,12 @@ lib.connect = (host='http://localhost:54321') ->
     models
 
   getModels = (go, opts) ->
-    requestWithOpts '/3/Models.json', opts, (error, result) ->
-      if error
-        go error, result
-      else
-        go error, patchUpModels result.models
+    requestWithOpts '/3/Models.json', opts, proceed go, (result) ->
+      patchUpModels result.models
 
   getModel = (key, go) ->
-    doGet "/3/Models.json/#{encodeURIComponent key}", (error, result) ->
-      if error
-        go error, result
-      else
-        go error, head patchUpModels result.models
+    doGet "/3/Models.json/#{encodeURIComponent key}", proceed go, (result) ->
+      head patchUpModels result.models
 
   deleteModel = (key, go) ->
     doDelete "/3/Models.json/#{encodeURIComponent key}", go
@@ -270,18 +275,12 @@ lib.connect = (host='http://localhost:54321') ->
     else
       {}
 
-    doPost "/3/Predictions.json/models/#{encodeURIComponent modelKey}/frames/#{encodeURIComponent frameKey}", opts, (error, result) ->
-      if error
-        go error
-      else
-        go null, head result.model_metrics
+    doPost "/3/Predictions.json/models/#{encodeURIComponent modelKey}/frames/#{encodeURIComponent frameKey}", opts, proceed go, (result) ->
+      head result.model_metrics
 
   getPrediction = (modelKey, frameKey, go) ->
-    doGet "/3/ModelMetrics.json/models/#{encodeURIComponent modelKey}/frames/#{encodeURIComponent frameKey}", (error, result) ->
-      if error
-        go error
-      else
-        go null, head result.model_metrics
+    doGet "/3/ModelMetrics.json/models/#{encodeURIComponent modelKey}/frames/#{encodeURIComponent frameKey}", proceed go, (result) ->
+      head result.model_metrics
 
   getPredictions = (modelKey, frameKey, _go) ->
     go = (error, result) ->
@@ -309,7 +308,8 @@ lib.connect = (host='http://localhost:54321') ->
     else
       doGet "/3/ModelMetrics.json", go
 
-  uploadFile = (key, formData, go) ->
+  uploadFile = (key, path, go) ->
+    formData = file: fs.createReadStream path
     doUpload "/3/PostFile.json?destination_key=#{encodeURIComponent key}", formData, go
 
   #TODO
