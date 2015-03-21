@@ -1,5 +1,5 @@
 fs = require 'fs'
-request = require 'request'
+_request = require 'request'
 
 lib = {}
 
@@ -24,30 +24,6 @@ proceed = (go, transform) ->
       go error
     else
       go null, transform result
-
-
-
-#
-# Proxy
-#
-
-http = (method, path, opts, go) ->
-  req = switch method
-    when 'GET'
-      $.getJSON path
-    when 'POST'
-      $.post path, opts
-    when 'DELETE'
-      $.ajax url: path, type: method
-    when 'UPLOAD'
-      $.ajax
-        url: path
-        type: 'POST'
-        data: opts
-        cache: no
-        contentType: no
-        processData: no
-
 
 mapWithKey = (obj, f) ->
   result = []
@@ -103,51 +79,52 @@ class H2OError extends Error
   cause: null
 
 lib.connect = (host='http://localhost:54321') ->
-  respond = (method, route, opts, go) ->
-    (error, response, body) ->
-      if error
-        cause = if body?.__meta?.schema_type is 'H2OError'
-          h2oError = new H2OError body.exception_msg
-          h2oError.remoteMessage = body.dev_msg
-          h2oError.remoteType = body.exception_type
-          h2oError.remoteStack = body.stacktrace.join '\n'
-          h2oError
-        else if error?.message
-          new H2OError error.message
-        else if isString error
-          new H2OError error
-        else
-          new H2OError "Unknown error: #{JSON.stringify error}"
+  request = (opts, go) ->
+    _request opts,
+      (error, response, body) ->
+        if error
+          cause = if body?.__meta?.schema_type is 'H2OError'
+            h2oError = new H2OError body.exception_msg
+            h2oError.remoteMessage = body.dev_msg
+            h2oError.remoteType = body.exception_type
+            h2oError.remoteStack = body.stacktrace.join '\n'
+            h2oError
+          else if error?.message
+            new H2OError error.message
+          else if isString error
+            new H2OError error
+          else
+            new H2OError "Unknown error: #{JSON.stringify error}"
 
-        parameters = if opts then " with opts #{JSON.stringify opts}" else ''
-        go new H2OError "Error calling #{method} #{host}#{route}#{parameters}.", cause
-      else
-        go error, body
+          parameters = if form = opts.form
+            " with form #{JSON.stringify form}"
+          else if formData = opts.formData
+            " with form data"
+          else
+            ''
+          go new H2OError "Error calling #{opts.method} #{opts.url}#{parameters}.", cause
+        else
+          go error, body
+
+  createRequestOpts = (method, route, formAttribute, formData) ->
+    opts = 
+      method: method
+      url: "#{host}#{route}"
+      json: yes
+    opts[formAttribute] = formData if formAttribute
+    opts
 
   doGet = (route, go) ->
-    opts = 
-      url: "#{host}#{route}"
-      json: yes
-    request opts, respond 'GET', route, null, go
+    request (createRequestOpts 'GET', route), go
 
   doPost = (route, form, go) ->
-    opts =
-      url: "#{host}#{route}"
-      form: form
-      json: yes
-    request.post opts, respond 'POST', route, form, go
-
-  doDelete = (route, go) ->
-    opts =
-      url: "#{host}#{route}"
-      json: yes
-    request.del opts, respond 'DELETE', route, null, go
+    request (createRequestOpts 'POST', route, 'form', form), go
 
   doUpload = (route, formData, go) ->
-    opts =
-      url: "#{host}#{route}"
-      formData: formData
-    request.post opts, respond 'POST', route, form, go
+    request (createRequestOpts 'POST', route, 'formData', formData), go
+
+  doDelete = (route, go) ->
+    request (createRequestOpts 'DELETE', route), go
 
   createFrame = (opts, go) ->
     doPost '/2/CreateFrame.json', opts, go
