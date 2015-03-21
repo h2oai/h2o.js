@@ -1,5 +1,7 @@
 # H<sub>2</sub>O.js
 
+    npm install h2o.js
+
 This Node.js / io.js module provides access to the [H<sub>2</sub>O](http://h2o.ai) JVM (and extensions thereof), its objects, its machine-learning algorithms, and modeling support (basic munging and feature generation) capabilities.
 
 It is designed to bring H<sub>2</sub>O to a wider audience of data and machine learning devotees that work exclusively with Javascript, for building machine learning applications or doing data munging in a fast, scalable environment without any extra mental anguish about threads and parallelism.
