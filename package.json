@@ -4,7 +4,9 @@
   "description": "Node.js bindings to H2O",
   "main": "h2o.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "coffee -c *.coffee",
+    "test": "npm start && node test.js",
+    "coverage": "npm start && istanbul cover test.js"
   },
   "repository": {
     "type": "git",
@@ -28,5 +30,15 @@
   "bugs": {
     "url": "https://github.com/h2oai/h2o.js/issues"
   },
-  "homepage": "https://github.com/h2oai/h2o.js"
+  "homepage": "https://github.com/h2oai/h2o.js",
+  "dependencies": {
+    "esprima": "^2.1.0",
+    "request": "^2.53.0"
+  },
+  "devDependencies": {
+    "coffee-script": "^1.9.1",
+    "faucet": "0.0.1",
+    "istanbul": "^0.3.8",
+    "tape": "^3.5.0"
+  }
 }
