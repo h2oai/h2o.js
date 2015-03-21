@@ -114,66 +114,62 @@ lib.connect = (baseUrl='http://localhost:54321') ->
       json: yes
     request.post opts, (error, response, body) -> go error, body
 
-  requestInspect = (key, go) ->
-    opts = key: encodeURIComponent key
-    requestWithOpts '/1/Inspect.json', opts, go
-
-  requestCreateFrame = (opts, go) ->
+  createFrame = (opts, go) ->
     doPost '/2/CreateFrame.json', opts, go
 
-  requestSplitFrame = (frameKey, splitRatios, splitKeys, go) ->
+  splitFrame = (frameKey, splitRatios, splitKeys, go) ->
     opts =
       dataset: frameKey
       ratios: encodeArrayForPost splitRatios
       dest_keys: encodeArrayForPost splitKeys
     doPost '/2/SplitFrame.json', opts, go
 
-  requestFrames = (go) ->
+  getFrames = (go) ->
     doGet '/3/Frames.json', (error, result) ->
       if error
         go error
       else
         go null, result.frames
 
-  requestFrame = (key, go) ->
+  getFrame = (key, go) ->
     doGet "/3/Frames.json/#{encodeURIComponent key}", (error, result) ->
       if error
         go error
       else
         go null, head result.frames
 
-  requestDeleteFrame = (key, go) ->
+  deleteFrame = (key, go) ->
     doDelete "/3/Frames.json/#{encodeURIComponent key}", go
 
-  requestRDDs = (go) ->
+  getRDDs = (go) ->
     doGet '/3/RDDs.json', (error, result) ->
       if error
         go error
       else
         go null, result.rdds
 
-  requestColumnSummary = (key, column, go) ->
+  getColumnSummary = (key, column, go) ->
     doGet "/3/Frames.json/#{encodeURIComponent key}/columns/#{encodeURIComponent column}/summary", (error, result) ->
       if error
         go error
       else
         go null, head result.frames
 
-  requestJobs = (go) ->
+  getJobs = (go) ->
     doGet '/2/Jobs.json', (error, result) ->
       if error
         go new Flow.Error 'Error fetching jobs', error
       else
         go null, result.jobs 
 
-  requestJob = (key, go) ->
+  getJob = (key, go) ->
     doGet "/2/Jobs.json/#{encodeURIComponent key}", (error, result) ->
       if error
         go new Flow.Error "Error fetching job '#{key}'", error
       else
         go null, head result.jobs
 
-  requestCancelJob = (key, go) ->
+  cancelJob = (key, go) ->
     doPost "/2/Jobs.json/#{encodeURIComponent key}/cancel", {}, (error, result) ->
       if error
         go new Flow.Error "Error canceling job '#{key}'", error
@@ -181,27 +177,24 @@ lib.connect = (baseUrl='http://localhost:54321') ->
         debug result
         go null
 
-  requestFileGlob = (path, limit, go) ->
-    opts =
-      src: encodeURIComponent path
-      limit: limit
-    requestWithOpts '/2/Typeahead.json/files', opts, go
-
+  #FIXME
   requestImportFiles = (paths, go) ->
     tasks = map paths, (path) ->
       (go) ->
         requestImportFile path, go
     (Flow.Async.iterate tasks) go
 
-  requestImportFile = (path, go) ->
+  importFile = (path, go) ->
     opts = path: encodeURIComponent path
     requestWithOpts '/2/ImportFiles.json', opts, go
 
+  #TODO
   requestParseSetup = (sourceKeys, go) ->
     opts =
       source_keys: encodeArrayForPost sourceKeys
     doPost '/2/ParseSetup.json', opts, go
 
+  #TODO
   requestParseSetupPreview = (sourceKeys, parseType, separator, useSingleQuotes, checkHeader, columnTypes, go) ->
     opts = 
       source_keys: encodeArrayForPost sourceKeys
@@ -212,7 +205,7 @@ lib.connect = (baseUrl='http://localhost:54321') ->
       column_types: encodeArrayForPost columnTypes
     doPost '/2/ParseSetup.json', opts, go
 
-  requestParseFiles = (sourceKeys, destinationKey, parseType, separator, columnCount, useSingleQuotes, columnNames, columnTypes, deleteOnDone, checkHeader, chunkSize, go) ->
+  parse = (sourceKeys, destinationKey, parseType, separator, columnCount, useSingleQuotes, columnNames, columnTypes, deleteOnDone, checkHeader, chunkSize, go) ->
     opts =
       destination_key: destinationKey
       source_keys: encodeArrayForPost sourceKeys
@@ -238,37 +231,37 @@ lib.connect = (baseUrl='http://localhost:54321') ->
               catch parseError
     models
 
-  requestModels = (go, opts) ->
+  getModels = (go, opts) ->
     requestWithOpts '/3/Models.json', opts, (error, result) ->
       if error
         go error, result
       else
         go error, patchUpModels result.models
 
-  requestModel = (key, go) ->
+  getModel = (key, go) ->
     doGet "/3/Models.json/#{encodeURIComponent key}", (error, result) ->
       if error
         go error, result
       else
         go error, head patchUpModels result.models
 
-  requestDeleteModel = (key, go) ->
+  deleteModel = (key, go) ->
     doDelete "/3/Models.json/#{encodeURIComponent key}", go
 
-  requestModelBuilders = (go) ->
+  getModelBuilders = (go) ->
     doGet "/3/ModelBuilders.json", go
 
-  requestModelBuilder = (algo, go) ->
+  getModelBuilder = (algo, go) ->
     doGet "/3/ModelBuilders.json/#{algo}", go
 
   requestModelInputValidation = (algo, parameters, go) ->
     doPost "/3/ModelBuilders.json/#{algo}/parameters", (encodeObjectForPost parameters), go
 
-  requestModelBuild = (algo, parameters, go) ->
+  buildModel = (algo, parameters, go) ->
     _.trackEvent 'model', algo
     doPost "/3/ModelBuilders.json/#{algo}", (encodeObjectForPost parameters), go
 
-  requestPredict = (destinationKey, modelKey, frameKey, go) ->
+  predict = (destinationKey, modelKey, frameKey, go) ->
     opts = if destinationKey
       destination_key: destinationKey
     else
@@ -280,14 +273,14 @@ lib.connect = (baseUrl='http://localhost:54321') ->
       else
         go null, head result.model_metrics
 
-  requestPrediction = (modelKey, frameKey, go) ->
+  getPrediction = (modelKey, frameKey, go) ->
     doGet "/3/ModelMetrics.json/models/#{encodeURIComponent modelKey}/frames/#{encodeURIComponent frameKey}", (error, result) ->
       if error
         go error
       else
         go null, head result.model_metrics
 
-  requestPredictions = (modelKey, frameKey, _go) ->
+  getPredictions = (modelKey, frameKey, _go) ->
     go = (error, result) ->
       if error
         _go error
@@ -313,47 +306,56 @@ lib.connect = (baseUrl='http://localhost:54321') ->
     else
       doGet "/3/ModelMetrics.json", go
 
-  requestUploadFile = (key, formData, go) ->
+  uploadFile = (key, formData, go) ->
     doUpload "/3/PostFile.json?destination_key=#{encodeURIComponent key}", formData, go
 
+  #TODO
   requestCloud = (go) ->
     doGet '/1/Cloud.json', go
 
+  #TODO
   requestTimeline = (go) ->
     doGet '/2/Timeline.json', go
 
+  #TODO
   requestProfile = (depth, go) ->
     doGet "/2/Profiler.json?depth=#{depth}", go
 
+  #TODO
   requestStackTrace = (go) ->
     doGet '/2/JStack.json', go
 
+  #TODO
   requestRemoveAll = (go) ->
     doDelete '/1/RemoveAll.json', go
 
+  #TODO
   requestLogFile = (nodeIndex, fileType, go) ->
     doGet "/3/Logs.json/nodes/#{nodeIndex}/files/#{fileType}", go
 
+  #TODO
   requestNetworkTest = (go) ->
     doGet '/2/NetworkTest.json', go
 
+  #TODO
   requestAbout = (go) ->
     doGet '/3/About.json', go
-
-  requestEndpoints = (go) ->
-    doGet '/1/Metadata/endpoints.json', go
-
-  requestEndpoint = (index, go) ->
-    doGet "/1/Metadata/endpoints.json/#{index}", go
-
-
-
 
   getSchemas = (go) ->
     doGet '/1/Metadata/schemas.json', go
 
   getSchema = (name, go) ->
     doGet "/1/Metadata/schemas.json/#{encodeURIComponent name}", go
+
+  #TODO
+  requestEndpoints = (go) ->
+    doGet '/1/Metadata/endpoints.json', go
+
+  #TODO
+  requestEndpoint = (index, go) ->
+    doGet "/1/Metadata/endpoints.json/#{index}", go
+
+
 
   shutdown = (go) ->
     doPost "/2/Shutdown.json", {}, go
