@@ -4,6 +4,8 @@ _request = require 'request'
 
 lib = {}
 
+dump = (a) -> console.log JSON.stringify a, null, 2
+
 enc = encodeURIComponent
 
 isString = (a) ->
@@ -21,38 +23,36 @@ head = (a) ->
   else
     undefined
 
-mapWithKey = (obj, f) ->
-  result = []
-  for key, value of obj
-    result.push f value, key
-  result
+method = (f) ->
+  (args...) ->
+    if args.length is f.length
+      # arity ok, so eval
+      f.apply null, args
+    else
+      # no efc, so defer
+      fj.fork.apply null, [f].concat args
 
-parameterizeRoute = (route, form) ->
+parameterize = (route, form) ->
   if form
-    params = mapWithKey form, (value, key) -> "#{key}=#{value}"
-    route + '?' + join params, '&'
+    pairs = for key, value of form
+      "#{key}=#{value}"
+    route + '?' + pairs.join '&'
   else
     route
 
-encodeArrayForPost = (array) -> 
+encodeArray = (array) -> 
   if array
     if array.length is 0
       null 
     else 
-      "[#{join array.map((element) -> if isNumber element then element else "\"#{element}\""), ','}]"
+      "[#{array.map((element) -> if isNumber element then element else "\"#{element}\"").join ','}]"
   else
     null
 
 encodeObject = (source) ->
   target = {}
   for key, value of source
-    target[key] = enc value
-  target
-
-encodeObjectForPost = (source) ->
-  target = {}
-  for key, value of source
-    target[key] = if isArray value then encodeArrayForPost value else value
+    target[key] = if isArray value then encodeArray value else value
   target
 
 unwrap = (go, transform) ->
@@ -69,7 +69,6 @@ class H2OError extends Error
   remoteType: null
   remoteStack: null
   cause: null
-
 
 connect = (host) ->
   (method, route, formAttribute, formData, go) ->
@@ -109,9 +108,13 @@ lib.connect = (host='http://localhost:54321') ->
 
   request = connect host
 
+  #
+  # Low level APIs
+  #
+
   get = (args..., go) ->
     [ route, form ] = args
-    request 'GET', (parameterizeRoute route, form), go
+    request 'GET', (parameterize route, form), undefined, undefined, go
 
   post = (route, form, go) ->
     request 'POST', route, 'form', form, go
@@ -120,91 +123,100 @@ lib.connect = (host='http://localhost:54321') ->
     request 'POST', route, 'formData', formData, go
 
   del = (route, go) ->
-    request 'DELETE', route, go
+    request 'DELETE', route, undefined, undefined, go
 
-  createFrame = (opts, go) ->
-    post '/2/CreateFrame.json', opts, go
+  #
+  # High level APIs
+  #
 
-  splitFrame = (frameKey, splitRatios, splitKeys, go) ->
-    opts =
-      dataset: frameKey
-      ratios: encodeArrayForPost splitRatios
-      dest_keys: encodeArrayForPost splitKeys
-    post '/2/SplitFrame.json', opts, go
+  createFrame = method (parameters, go) ->
+    post '/2/CreateFrame.json', parameters, go
 
-  getFrames = (go) ->
-    get '/3/Frames.json', (error, result) ->
-      if error
-        go error
-      else
-        go null, result.frames
+  splitFrame = method (parameters, go) ->
+#     form =
+#       dataset: parameters.dataset
+#       ratios: encodeArray parameters.ratios
+#       dest_keys: encodeArray parameter.dest_keys
+    post '/2/SplitFrame.json', (encodeObject parameters), go
 
-  getFrame = (key, go) ->
-    get "/3/Frames.json/#{enc key}", unwrap go, (result) ->
-      head result.frames
+  getFrames = method (go) ->
+    get '/3/Frames.json', unwrap go, (result) -> result.frames
 
-  deleteFrame = (key, go) ->
+  getFrame = method (key, go) ->
+    get "/3/Frames.json/#{enc key}", unwrap go, (result) -> head result.frames
+
+  deleteFrame = method (key, go) ->
     del "/3/Frames.json/#{enc key}", go
 
-  getRDDs = (go) ->
+  getRDDs = method (go) ->
     get '/3/RDDs.json', unwrap go, (result) -> result.rdds
 
-  getColumnSummary = (key, column, go) ->
+  getColumnSummary = method (key, column, go) ->
     get "/3/Frames.json/#{enc key}/columns/#{enc column}/summary", unwrap go, (result) ->
       head result.frames
 
-  getJobs = (go) ->
+  getJobs = method (go) ->
     get '/2/Jobs.json', unwrap go, (result) ->
       result.jobs
 
-  getJob = (key, go) ->
+  getJob = method (key, go) ->
     get "/2/Jobs.json/#{enc key}", unwrap go, (result) ->
       head result.jobs
 
-  cancelJob = (key, go) ->
+  cancelJob = method (key, go) ->
     post "/2/Jobs.json/#{enc key}/cancel", {}, go
 
-  importFile = (opt, go) ->
-    form = path: enc opt.path
+  importFile = method (parameters, go) ->
+    form = path: enc parameters.path
     get '/2/ImportFiles.json', form, go
 
-  importFiles = (opts, go) ->
-    f = fj.seq opts.map (opt) -> fj.fork importFile, opt
-    f go
+  importFiles = method (parameters, go) ->
+    (fj.seq parameters.map (parameters) -> fj.fork importFile, parameters) go
 
   #TODO
-  requestParseSetup = (sourceKeys, go) ->
-    opts =
-      source_keys: encodeArrayForPost sourceKeys
-    post '/2/ParseSetup.json', opts, go
+  requestParseSetup = method (sourceKeys, go) ->
+    parameters =
+      source_keys: encodeArray sourceKeys
+    post '/2/ParseSetup.json', parameters, go
 
   #TODO
-  requestParseSetupPreview = (sourceKeys, parseType, separator, useSingleQuotes, checkHeader, columnTypes, go) ->
-    opts = 
-      source_keys: encodeArrayForPost sourceKeys
+  requestParseSetupPreview = method (sourceKeys, parseType, separator, useSingleQuotes, checkHeader, columnTypes, go) ->
+    parameters = 
+      source_keys: encodeArray sourceKeys
       parse_type: parseType
       separator: separator
       single_quotes: useSingleQuotes
       check_header: checkHeader
-      column_types: encodeArrayForPost columnTypes
-    post '/2/ParseSetup.json', opts, go
+      column_types: encodeArray columnTypes
+    post '/2/ParseSetup.json', parameters, go
 
-  parseFiles = (sourceKeys, destinationKey, parseType, separator, columnCount, useSingleQuotes, columnNames, columnTypes, deleteOnDone, checkHeader, chunkSize, go) ->
-    opts =
+  parseFiles = method (sourceKeys, destinationKey, parseType, separator, columnCount, useSingleQuotes, columnNames, columnTypes, deleteOnDone, checkHeader, chunkSize, go) ->
+    parameters =
       destination_key: destinationKey
-      source_keys: encodeArrayForPost sourceKeys
+      source_keys: encodeArray sourceKeys
       parse_type: parseType
       separator: separator
       number_columns: columnCount
       single_quotes: useSingleQuotes
-      column_names: encodeArrayForPost columnNames
-      column_types: encodeArrayForPost columnTypes
+      column_names: encodeArray columnNames
+      column_types: encodeArray columnTypes
       check_header: checkHeader
       delete_on_done: deleteOnDone
       chunk_size: chunkSize
-    post '/2/Parse.json', opts, go
+    post '/2/Parse.json', parameters, go
 
-  patchUpModels = (models) ->
+  # import-and-parse
+  importFrame = method (parameters, go) ->
+    importFilesParameters = for sourcePath in parameters.source_paths
+      path: sourcePath
+    importFiles importFilesParameters, (error, results) ->
+      if error
+        go error
+      else
+        dump results
+      return
+
+  patchUpModels = method (models) ->
     for model in models
       for parameter in model.parameters
         switch parameter.type
@@ -215,44 +227,44 @@ lib.connect = (host='http://localhost:54321') ->
               catch parseError
     models
 
-  getModels = (go, opts) ->
-    get '/3/Models.json', opts, unwrap go, (result) ->
+  getModels = method (go) ->
+    get '/3/Models.json', unwrap go, (result) ->
       patchUpModels result.models
 
-  getModel = (key, go) ->
+  getModel = method (key, go) ->
     get "/3/Models.json/#{enc key}", unwrap go, (result) ->
       head patchUpModels result.models
 
-  deleteModel = (key, go) ->
+  deleteModel = method (key, go) ->
     del "/3/Models.json/#{enc key}", go
 
-  getModelBuilders = (go) ->
+  getModelBuilders = method (go) ->
     get "/3/ModelBuilders.json", go
 
-  getModelBuilder = (algo, go) ->
+  getModelBuilder = method (algo, go) ->
     get "/3/ModelBuilders.json/#{algo}", go
 
-  requestModelInputValidation = (algo, parameters, go) ->
-    post "/3/ModelBuilders.json/#{algo}/parameters", (encodeObjectForPost parameters), go
+  requestModelInputValidation = method (algo, parameters, go) ->
+    post "/3/ModelBuilders.json/#{algo}/parameters", (encodeObject parameters), go
 
-  createModel = (algo, parameters, go) ->
+  createModel = method (algo, parameters, go) ->
     _.trackEvent 'model', algo
-    post "/3/ModelBuilders.json/#{algo}", (encodeObjectForPost parameters), go
+    post "/3/ModelBuilders.json/#{algo}", (encodeObject parameters), go
 
-  predict = (destinationKey, modelKey, frameKey, go) ->
-    opts = if destinationKey
+  predict = method (destinationKey, modelKey, frameKey, go) ->
+    parameters = if destinationKey
       destination_key: destinationKey
     else
       {}
 
-    post "/3/Predictions.json/models/#{enc modelKey}/frames/#{enc frameKey}", opts, unwrap go, (result) ->
+    post "/3/Predictions.json/models/#{enc modelKey}/frames/#{enc frameKey}", parameters, unwrap go, (result) ->
       head result.model_metrics
 
-  getPrediction = (modelKey, frameKey, go) ->
+  getPrediction = method (modelKey, frameKey, go) ->
     get "/3/ModelMetrics.json/models/#{enc modelKey}/frames/#{enc frameKey}", unwrap go, (result) ->
       head result.model_metrics
 
-  getPredictions = (modelKey, frameKey, _go) ->
+  getPredictions = method (modelKey, frameKey, _go) ->
     go = (error, result) ->
       if error
         _go error
@@ -278,54 +290,54 @@ lib.connect = (host='http://localhost:54321') ->
     else
       get "/3/ModelMetrics.json", go
 
-  uploadFile = (key, path, go) ->
+  uploadFile = method (key, path, go) ->
     formData = file: fs.createReadStream path
     upload "/3/PostFile.json?destination_key=#{enc key}", formData, go
 
   #TODO
-  requestCloud = (go) ->
+  requestCloud = method (go) ->
     get '/1/Cloud.json', go
 
   #TODO
-  requestTimeline = (go) ->
+  requestTimeline = method (go) ->
     get '/2/Timeline.json', go
 
   #TODO
-  requestProfile = (depth, go) ->
+  requestProfile = method (depth, go) ->
     get "/2/Profiler.json?depth=#{depth}", go
 
   #TODO
-  requestStackTrace = (go) ->
+  requestStackTrace = method (go) ->
     get '/2/JStack.json', go
 
   #TODO
-  requestLogFile = (nodeIndex, fileType, go) ->
+  requestLogFile = method (nodeIndex, fileType, go) ->
     get "/3/Logs.json/nodes/#{nodeIndex}/files/#{fileType}", go
 
   #TODO
-  requestNetworkTest = (go) ->
+  requestNetworkTest = method (go) ->
     get '/2/NetworkTest.json', go
 
   #TODO
-  requestAbout = (go) ->
+  requestAbout = method (go) ->
     get '/3/About.json', go
 
-  getSchemas = (go) ->
+  getSchemas = method (go) ->
     get '/1/Metadata/schemas.json', go
 
-  getSchema = (name, go) ->
+  getSchema = method (name, go) ->
     get "/1/Metadata/schemas.json/#{enc name}", go
 
-  getEndpoints = (go) ->
+  getEndpoints = method (go) ->
     get '/1/Metadata/endpoints.json', go
 
-  getEndpoint = (index, go) ->
+  getEndpoint = method (index, go) ->
     get "/1/Metadata/endpoints.json/#{index}", go
 
-  deleteAll = (go) ->
+  deleteAll = method (go) ->
     del '/1/RemoveAll.json', go
 
-  shutdown = (go) ->
+  shutdown = method (go) ->
     post "/2/Shutdown.json", {}, go
 
   # Files
@@ -336,6 +348,7 @@ lib.connect = (host='http://localhost:54321') ->
 
   # Frames
   createFrame: createFrame
+  importFrame: importFrame
   splitFrame: splitFrame
   getFrames: getFrames
   getFrame: getFrame
