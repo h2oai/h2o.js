@@ -5,6 +5,7 @@
   "main": "h2o.js",
   "scripts": {
     "start": "coffee -c *.coffee",
+    "build-examples": "coffee -c examples/*.coffee",
     "test": "npm start && node test.js",
     "coverage": "npm start && istanbul cover test.js"
   },
@@ -34,6 +35,8 @@
   "dependencies": {
     "esprima": "^2.1.0",
     "forkjoin": "0.0.3",
+    "lodash": "^3.5.0",
+    "node-uuid": "^1.4.3",
     "request": "^2.53.0"
   },
   "devDependencies": {

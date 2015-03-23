@@ -1,6 +1,8 @@
 fs = require 'fs'
 fj = require 'forkjoin'
+_ = require 'lodash'
 _request = require 'request'
+_uuid = require 'node-uuid'
 
 lib = {}
 
@@ -8,20 +10,7 @@ dump = (a) -> console.log JSON.stringify a, null, 2
 
 enc = encodeURIComponent
 
-isString = (a) ->
-  ('string' is typeof a) or (a instanceof String)
-
-isArray = (a) ->
-  a instanceof Array
-
-isFunction = (a) ->
-  'function' is typeof a
-
-head = (a) ->
-  if a?.length
-    a[0]
-  else
-    undefined
+uuid = -> _uuid.v4()
 
 method = (f) ->
   (args...) ->
@@ -45,14 +34,14 @@ encodeArray = (array) ->
     if array.length is 0
       null 
     else 
-      "[#{array.map((element) -> if isNumber element then element else "\"#{element}\"").join ','}]"
+      "[#{array.map((element) -> if _.isNumber element then element else "\"#{element}\"").join ','}]"
   else
     null
 
 encodeObject = (source) ->
   target = {}
   for key, value of source
-    target[key] = if isArray value then encodeArray value else value
+    target[key] = if _.isArray value then encodeArray value else value
   target
 
 unwrap = (go, transform) ->
@@ -89,7 +78,7 @@ connect = (host) ->
             h2oError
           else if error?.message
             new H2OError error.message
-          else if isString error
+          else if _.isString error
             new H2OError error
           else
             new H2OError "Unknown error: #{JSON.stringify error}"
@@ -143,7 +132,7 @@ lib.connect = (host='http://localhost:54321') ->
     get '/3/Frames.json', unwrap go, (result) -> result.frames
 
   getFrame = method (key, go) ->
-    get "/3/Frames.json/#{enc key}", unwrap go, (result) -> head result.frames
+    get "/3/Frames.json/#{enc key}", unwrap go, (result) -> _.head result.frames
 
   deleteFrame = method (key, go) ->
     del "/3/Frames.json/#{enc key}", go
@@ -153,7 +142,7 @@ lib.connect = (host='http://localhost:54321') ->
 
   getColumnSummary = method (key, column, go) ->
     get "/3/Frames.json/#{enc key}/columns/#{enc column}/summary", unwrap go, (result) ->
-      head result.frames
+      _.head result.frames
 
   getJobs = method (go) ->
     get '/2/Jobs.json', unwrap go, (result) ->
@@ -161,7 +150,7 @@ lib.connect = (host='http://localhost:54321') ->
 
   getJob = method (key, go) ->
     get "/2/Jobs.json/#{enc key}", unwrap go, (result) ->
-      head result.jobs
+      _.head result.jobs
 
   cancelJob = method (key, go) ->
     post "/2/Jobs.json/#{enc key}/cancel", {}, go
@@ -174,10 +163,10 @@ lib.connect = (host='http://localhost:54321') ->
     (fj.seq parameters.map (parameters) -> fj.fork importFile, parameters) go
 
   #TODO
-  requestParseSetup = method (sourceKeys, go) ->
-    parameters =
-      source_keys: encodeArray sourceKeys
-    post '/2/ParseSetup.json', parameters, go
+  setupParse = method (parameters, go) ->
+    form =
+      source_keys: encodeArray parameters.source_keys
+    post '/2/ParseSetup.json', form, go
 
   #TODO
   requestParseSetupPreview = method (sourceKeys, parseType, separator, useSingleQuotes, checkHeader, columnTypes, go) ->
@@ -190,30 +179,54 @@ lib.connect = (host='http://localhost:54321') ->
       column_types: encodeArray columnTypes
     post '/2/ParseSetup.json', parameters, go
 
-  parseFiles = method (sourceKeys, destinationKey, parseType, separator, columnCount, useSingleQuotes, columnNames, columnTypes, deleteOnDone, checkHeader, chunkSize, go) ->
-    parameters =
-      destination_key: destinationKey
-      source_keys: encodeArray sourceKeys
-      parse_type: parseType
-      separator: separator
-      number_columns: columnCount
-      single_quotes: useSingleQuotes
-      column_names: encodeArray columnNames
-      column_types: encodeArray columnTypes
-      check_header: checkHeader
-      delete_on_done: deleteOnDone
-      chunk_size: chunkSize
-    post '/2/Parse.json', parameters, go
+  parseFiles = method (parameters, go) ->
+#    parameters =
+#      destination_key: destinationKey
+#      source_keys: encodeArray sourceKeys
+#      parse_type: parseType
+#      separator: separator
+#      number_columns: columnCount
+#      single_quotes: useSingleQuotes
+#      column_names: encodeArray columnNames
+#      column_types: encodeArray columnTypes
+#      check_header: checkHeader
+#      delete_on_done: deleteOnDone
+#      chunk_size: chunkSize
+    post '/2/Parse.json', (encodeObject parameters), go
 
   # import-and-parse
   importFrame = method (parameters, go) ->
-    importFilesParameters = for sourcePath in parameters.source_paths
-      path: sourcePath
-    importFiles importFilesParameters, (error, results) ->
+    importForm = 
+      path: parameters.path
+    importFile importForm, (error, importResult) ->
       if error
         go error
       else
-        dump results
+        setupParseForm =
+          source_keys: importResult.keys
+
+        setupParse setupParseForm, (error, spr) ->
+          if error
+            go error
+          else
+            parseParameters =
+              destination_key: spr.destination_key
+              source_keys: spr.source_keys.map (key) -> key.name
+              parse_type: spr.parse_type
+              separator: spr.separator
+              number_columns: spr.number_columns
+              single_quotes: spr.single_quotes
+              column_names: spr.column_names
+              column_types: spr.column_types
+              check_header: spr.check_header
+              chunk_size: spr.chunk_size
+              delete_on_done: yes
+
+            parseFiles parseParameters, (error, pr) ->
+              if error
+                go error
+              else
+                dump pr
       return
 
   patchUpModels = method (models) ->
@@ -221,7 +234,7 @@ lib.connect = (host='http://localhost:54321') ->
       for parameter in model.parameters
         switch parameter.type
           when 'Key<Frame>', 'Key<Model>', 'VecSpecifier'
-            if isString parameter.actual_value
+            if _.isString parameter.actual_value
               try
                 parameter.actual_value = JSON.parse parameter.actual_value
               catch parseError
@@ -233,7 +246,7 @@ lib.connect = (host='http://localhost:54321') ->
 
   getModel = method (key, go) ->
     get "/3/Models.json/#{enc key}", unwrap go, (result) ->
-      head patchUpModels result.models
+      _.head patchUpModels result.models
 
   deleteModel = method (key, go) ->
     del "/3/Models.json/#{enc key}", go
@@ -258,11 +271,11 @@ lib.connect = (host='http://localhost:54321') ->
       {}
 
     post "/3/Predictions.json/models/#{enc modelKey}/frames/#{enc frameKey}", parameters, unwrap go, (result) ->
-      head result.model_metrics
+      _.head result.model_metrics
 
   getPrediction = method (modelKey, frameKey, go) ->
     get "/3/ModelMetrics.json/models/#{enc modelKey}/frames/#{enc frameKey}", unwrap go, (result) ->
-      head result.model_metrics
+      _.head result.model_metrics
 
   getPredictions = method (modelKey, frameKey, _go) ->
     go = (error, result) ->
