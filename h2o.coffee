@@ -229,6 +229,35 @@ lib.connect = (host='http://localhost:54321') ->
                 dump pr
       return
 
+  # import-and-parse
+  importFrame = method (parameters, go) ->
+    importParameters = 
+      path: parameters.path
+    importResult = importFile importParameters
+    setupParameters = fj.lift importResult, (importResult) ->
+      source_keys: importResult.keys
+    setupResult = setupParse setupParameters
+    parseParameters = fj.lift setupResult, (spr) ->
+      destination_key: spr.destination_key
+      source_keys: spr.source_keys.map (key) -> key.name
+      parse_type: spr.parse_type
+      separator: spr.separator
+      number_columns: spr.number_columns
+      single_quotes: spr.single_quotes
+      column_names: spr.column_names
+      column_types: spr.column_types
+      check_header: spr.check_header
+      chunk_size: spr.chunk_size
+      delete_on_done: yes
+    parseResult = parseFiles parseParameters
+    
+    parseResult (error, pr) ->
+      if error
+        go error
+      else
+        dump pr
+    return
+
   patchUpModels = method (models) ->
     for model in models
       for parameter in model.parameters
