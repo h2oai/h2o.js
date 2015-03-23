@@ -196,60 +196,26 @@ lib.connect = (host='http://localhost:54321') ->
 
   # import-and-parse
   importFrame = method (parameters, go) ->
-    importForm = 
+    importResult = importFile
       path: parameters.path
-    importFile importForm, (error, importResult) ->
-      if error
-        go error
-      else
-        setupParseForm =
-          source_keys: importResult.keys
 
-        setupParse setupParseForm, (error, spr) ->
-          if error
-            go error
-          else
-            parseParameters =
-              destination_key: spr.destination_key
-              source_keys: spr.source_keys.map (key) -> key.name
-              parse_type: spr.parse_type
-              separator: spr.separator
-              number_columns: spr.number_columns
-              single_quotes: spr.single_quotes
-              column_names: spr.column_names
-              column_types: spr.column_types
-              check_header: spr.check_header
-              chunk_size: spr.chunk_size
-              delete_on_done: yes
+    setupResult = fj.lift importResult, (result) ->
+      setupParse 
+        source_keys: result.keys
 
-            parseFiles parseParameters, (error, pr) ->
-              if error
-                go error
-              else
-                dump pr
-      return
-
-  # import-and-parse
-  importFrame = method (parameters, go) ->
-    importParameters = 
-      path: parameters.path
-    importResult = importFile importParameters
-    setupParameters = fj.lift importResult, (importResult) ->
-      source_keys: importResult.keys
-    setupResult = setupParse setupParameters
-    parseParameters = fj.lift setupResult, (spr) ->
-      destination_key: spr.destination_key
-      source_keys: spr.source_keys.map (key) -> key.name
-      parse_type: spr.parse_type
-      separator: spr.separator
-      number_columns: spr.number_columns
-      single_quotes: spr.single_quotes
-      column_names: spr.column_names
-      column_types: spr.column_types
-      check_header: spr.check_header
-      chunk_size: spr.chunk_size
-      delete_on_done: yes
-    parseResult = parseFiles parseParameters
+    parseResult = fj.lift setupResult, (result) ->
+      parseFiles
+        destination_key: result.destination_key
+        source_keys: result.source_keys.map (key) -> key.name
+        parse_type: result.parse_type
+        separator: result.separator
+        number_columns: result.number_columns
+        single_quotes: result.single_quotes
+        column_names: result.column_names
+        column_types: result.column_types
+        check_header: result.check_header
+        chunk_size: result.chunk_size
+        delete_on_done: yes
     
     parseResult (error, pr) ->
       if error
