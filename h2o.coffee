@@ -8,6 +8,8 @@ lib = {}
 
 dump = (a) -> console.log JSON.stringify a, null, 2
 
+deepClone = (a) -> JSON.parse JSON.stringify a
+
 enc = encodeURIComponent
 
 uuid = -> _uuid.v4()
@@ -50,6 +52,43 @@ unwrap = (go, transform) ->
       go error
     else
       go null, transform result
+
+getH2OType = (obj) ->
+  obj?.__h2o_js__?.type
+
+extendFrame = (frame) ->
+  frame.__h2o_js__ =
+    type: 'Frame'
+  frame
+
+extractFrameKey = (a) ->
+  if _.isString a
+    a
+  else if 'Frame' is getH2OType a
+    a.key.name
+  else
+    undefined
+
+extendModel = (model) ->
+  model.__h2o_js__ =
+    type: 'Model'
+  model
+
+extractModelKey = (a) ->
+  if _.isString a
+    a
+  else if 'Model' is getH2OType a
+    a.key.name
+  else
+    undefined
+
+extendFrames = (frames) -> 
+  for frame in frames
+    extendFrame frame
+
+extendModels = (models) ->
+  for model in models
+    extendModel model
 
 class H2OError extends Error
   constructor: (@message, cause) ->
@@ -130,10 +169,10 @@ lib.connect = (host='http://localhost:54321') ->
     post '/2/SplitFrame.json', (encodeObject parameters), go
 
   getFrames = method (go) ->
-    get '/3/Frames.json', unwrap go, (result) -> result.frames
+    get '/3/Frames.json', unwrap go, (result) -> extendFrames result.frames
 
   getFrame = method (key, go) ->
-    get "/3/Frames.json/#{enc key}", unwrap go, (result) -> _.head result.frames
+    get "/3/Frames.json/#{enc key}", unwrap go, (result) -> _.head extendFrames result.frames
 
   deleteFrame = method (key, go) ->
     del "/3/Frames.json/#{enc key}", go
@@ -260,11 +299,11 @@ lib.connect = (host='http://localhost:54321') ->
 
   getModels = method (go) ->
     get '/3/Models.json', unwrap go, (result) ->
-      patchUpModels result.models
+      patchUpModels extendModels result.models
 
   getModel = method (key, go) ->
     get "/3/Models.json/#{enc key}", unwrap go, (result) ->
-      _.head patchUpModels result.models
+      _.head patchUpModels extendModels result.models
 
   deleteModel = method (key, go) ->
     del "/3/Models.json/#{enc key}", go
@@ -278,18 +317,65 @@ lib.connect = (host='http://localhost:54321') ->
   requestModelInputValidation = method (algo, parameters, go) ->
     post "/3/ModelBuilders.json/#{algo}/parameters", (encodeObject parameters), go
 
-  createModel = method (algo, parameters, go) ->
-    _.trackEvent 'model', algo
+  resolveParameters = method (parameters, go) ->
+    unresolveds = []
+    resolved = {}
+    for key, obj of parameters
+      if fj.isFuture obj
+        unresolveds.push key: key, future: obj
+      else
+        resolved[key] = obj
+
+    if unresolveds.length
+      (fj.map unresolveds, ((a) -> a.future)) (error, values) ->
+        if error
+          go error
+        else
+          for value, i in values
+            resolved[unresolveds[i].key] = value
+          go null, resolved
+    else
+      go null, resolved
+
+  buildModel = method (algo, parameters, go) ->
     post "/3/ModelBuilders.json/#{algo}", (encodeObject parameters), go
 
-  predict = method (destinationKey, modelKey, frameKey, go) ->
-    parameters = if destinationKey
-      destination_key: destinationKey
-    else
-      {}
+  createModel = method (algo, parameters, go) ->
+    resolvedParameters = resolveParameters parameters
+    build = fj.lift resolvedParameters, (parameters) ->
+      trainingFrameKey = extractFrameKey parameters.training_frame
+      validationFrameKey = extractFrameKey parameters.validation_frame
+      delete parameters.training_frame
+      delete parameters.validation_frame
+      parameters.training_frame = trainingFrameKey if trainingFrameKey
+      parameters.validation_frame = validationFrameKey if validationFrameKey
+      buildModel algo, parameters
 
-    post "/3/Predictions.json/models/#{enc modelKey}/frames/#{enc frameKey}", parameters, unwrap go, (result) ->
-      _.head result.model_metrics
+    job = fj.lift build, (build) ->
+      waitForJob build.jobs[0].key.name
+
+    model = fj.lift job, (job) ->
+      getModel job.dest.name
+
+    model go
+
+  predict = method (parameters, go) ->
+    #TODO allow user-override on destination_key
+    #parameters = if destinationKey
+    #  destination_key: destinationKey
+    #else
+    #  {}
+    resolveParameters parameters, (error, parameters) ->
+      if error
+        go error
+      else
+        modelKey = extractModelKey parameters.model
+        frameKey = extractFrameKey parameters.frame
+        delete parameters.model
+        delete parameters.frame
+
+        post "/3/Predictions.json/models/#{enc modelKey}/frames/#{enc frameKey}", parameters, unwrap go, (result) ->
+          _.head result.model_metrics
 
   getPrediction = method (modelKey, frameKey, go) ->
     get "/3/ModelMetrics.json/models/#{enc modelKey}/frames/#{enc frameKey}", unwrap go, (result) ->
