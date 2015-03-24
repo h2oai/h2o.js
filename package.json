@@ -34,7 +34,7 @@
   "homepage": "https://github.com/h2oai/h2o.js",
   "dependencies": {
     "esprima": "^2.1.0",
-    "forkjoin": "0.0.5",
+    "forkjoin": "0.0.6",
     "lodash": "^3.5.0",
     "node-uuid": "^1.4.3",
     "request": "^2.53.0"
