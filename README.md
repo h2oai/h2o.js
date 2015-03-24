@@ -1,6 +1,6 @@
 # H<sub>2</sub>O.js
 
-    npm install h2o.js
+[![NPM](https://nodei.co/npm/h2o.js.png?compact=true)](https://npmjs.org/package/h2o.js)
 
 This Node.js / io.js module provides access to the [H<sub>2</sub>O](http://h2o.ai) JVM (and extensions thereof), its objects, its machine-learning algorithms, and modeling support (basic munging and feature generation) capabilities.
 
