@@ -67,31 +67,32 @@ connect = (host) ->
       json: yes
     opts[formAttribute] = formData if formAttribute
 
-    _request opts,
-      (error, response, body) ->
-        if error
-          cause = if body?.__meta?.schema_type is 'H2OError'
-            h2oError = new H2OError body.exception_msg
-            h2oError.remoteMessage = body.dev_msg
-            h2oError.remoteType = body.exception_type
-            h2oError.remoteStack = body.stacktrace.join '\n'
-            h2oError
-          else if error?.message
-            new H2OError error.message
-          else if _.isString error
-            new H2OError error
-          else
-            new H2OError "Unknown error: #{JSON.stringify error}"
+    console.log "#{opts.method} #{opts.url}"
 
-          parameters = if form = opts.form
-            " with form #{JSON.stringify form}"
-          else if formData = opts.formData
-            " with form data"
-          else
-            ''
-          go new H2OError "Error calling #{opts.method} #{opts.url}#{parameters}.", cause
+    _request opts, (error, response, body) ->
+      if error
+        cause = if body?.__meta?.schema_type is 'H2OError'
+          h2oError = new H2OError body.exception_msg
+          h2oError.remoteMessage = body.dev_msg
+          h2oError.remoteType = body.exception_type
+          h2oError.remoteStack = body.stacktrace.join '\n'
+          h2oError
+        else if error?.message
+          new H2OError error.message
+        else if _.isString error
+          new H2OError error
         else
-          go error, body
+          new H2OError "Unknown error: #{JSON.stringify error}"
+
+        parameters = if form = opts.form
+          " with form #{JSON.stringify form}"
+        else if formData = opts.formData
+          " with form data"
+        else
+          ''
+        go new H2OError "Error calling #{opts.method} #{opts.url}#{parameters}.", cause
+      else
+        go error, body
 
 lib.connect = (host='http://localhost:54321') ->
 
@@ -152,6 +153,26 @@ lib.connect = (host='http://localhost:54321') ->
     get "/2/Jobs.json/#{enc key}", unwrap go, (result) ->
       _.head result.jobs
 
+  waitForJob = method (key, go) ->
+    poll = ->
+      getJob key, (error, job) ->
+        if error
+          go error
+        else
+          # CREATED   Job was created
+          # RUNNING   Job is running
+          # CANCELLED Job was cancelled by user
+          # FAILED    Job crashed, error message/exception is available
+          # DONE      Job was successfully finished
+          switch job.status
+            when 'DONE'
+              go null, job
+            when 'CREATED', 'RUNNING'
+              setTimeout poll, 1000 
+            else # 'CANCELLED', 'FAILED'
+              go (new H2OError "Job #{key} failed: #{job.exception}"), job
+    poll()
+
   cancelJob = method (key, go) ->
     post "/2/Jobs.json/#{enc key}/cancel", {}, go
 
@@ -204,6 +225,7 @@ lib.connect = (host='http://localhost:54321') ->
         source_keys: result.keys
 
     parseResult = fj.lift setupResult, (result) ->
+      # TODO override with user-parameters
       parseFiles
         destination_key: result.destination_key
         source_keys: result.source_keys.map (key) -> key.name
@@ -216,13 +238,14 @@ lib.connect = (host='http://localhost:54321') ->
         check_header: result.check_header
         chunk_size: result.chunk_size
         delete_on_done: yes
-    
-    parseResult (error, pr) ->
-      if error
-        go error
-      else
-        dump pr
-    return
+
+    job = fj.lift parseResult, (result) ->
+      waitForJob result.job.key.name
+
+    frame = fj.lift job, (job) ->
+      getFrame job.dest.name
+
+    frame go
 
   patchUpModels = method (models) ->
     for model in models
