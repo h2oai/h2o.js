@@ -34,7 +34,6 @@ _ = require 'lodash'
 esprima = require 'esprima'
 
 dump = (a) -> console.log JSON.stringify a, null, 2
-concat = (a) -> a.join ' '
 
 #
 # Mozilla SpiderMonkey/Parser API
@@ -613,7 +612,7 @@ SExpr = (context) ->
     EmptyStatement: null
 
     BlockStatement: (node) ->
-      "(, #{ concat (sexpr statement for statement in node.body) })"
+      "(, #{ sexprs (sexpr statement for statement in node.body) })"
 
     ExpressionStatement: (node) ->
       sexpr node.expression
@@ -643,7 +642,7 @@ SExpr = (context) ->
     VariableDeclaration: (node) ->
       switch node.kind
         when 'var'
-          concat (sexpr declarator for declarator in node.declarations)
+          sexprs (sexpr declarator for declarator in node.declarations)
         else # 'let', 'const'
           throw new Error "Unsupported #{node.kind} #{node.type}"
 
@@ -659,7 +658,7 @@ SExpr = (context) ->
     ArrowExpression: null
 
     SequenceExpression: (node) ->
-      "(, #{ concat (sexpr expression for expression in node.expressions) })"
+      "(, #{ sexprs (sexpr expression for expression in node.expressions) })"
 
     UnaryExpression: null
 
@@ -776,6 +775,8 @@ SExpr = (context) ->
     LogicalOperator:
       '||': null
       '&&': null
+
+  sexprs = (sexprs) -> sexprs.join ' '
 
   sexpr = (node) ->
     if handler = (if node then Nodes[node.type] else Nodes.Null)

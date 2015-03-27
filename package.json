@@ -7,7 +7,7 @@
     "start": "coffee -c *.coffee",
     "build-examples": "coffee -c examples/*.coffee",
     "test": "npm start && node test.js",
-    "coverage": "npm start && istanbul cover test.js"
+    "coverage": "npm start && istanbul cover -x americano.test.js test.js"
   },
   "repository": {
     "type": "git",
