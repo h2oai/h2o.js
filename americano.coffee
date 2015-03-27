@@ -720,7 +720,18 @@ SExpr = (context) ->
           BinaryExpression '-', argument, Literal 1, '1'
         ]
 
-    LogicalExpression: null
+    LogicalExpression: (node) ->
+      { operator, left, right } = node
+      op = switch operator
+        when '||'
+          '|'
+        when '&&'
+          '&'
+        else
+          throw new Error "Unsupported #{node.type} operator [#{operator}]"
+
+      "(#{op} #{sexpr left} #{sexpr right})"
+
     ConditionalExpression: null
     NewExpression: null
     CallExpression: null
