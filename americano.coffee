@@ -631,16 +631,16 @@ SExpr = (context) ->
     Function: null
     Statement: null
     EmptyStatement: null
-
     BlockStatement: (node) ->
       if node.body.length is 1
-        statement = node.body[0]
-        if statement.type is 'ReturnStatement'
-          sexpr statement.argument
-        else
-          sexpr statement
+        sexprt node.body[0]
       else
-        "(, #{ sexprs (sexpr statement for statement in node.body) })"
+        exprs = for statement, i in node.body
+          if i is node.body.length - 1
+            sexprt statement
+          else
+            sexpr statement
+        "(, #{ sexprs exprs })"
 
     ExpressionStatement: (node) ->
       sexpr node.expression
@@ -819,6 +819,9 @@ SExpr = (context) ->
       '#NaN'
 
   sexprs = (sexprs) -> sexprs.join ' '
+
+  sexprt = (node) ->
+    sexpr if node.type is 'ReturnStatement' then node.argument else node
 
   sexpr = (node) ->
     if handler = (if node then Nodes[node.type] else Nodes.Null)
