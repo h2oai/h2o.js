@@ -583,7 +583,28 @@ concat = (a) -> a.join ' '
 # }
 # A literal token. Note that a literal can be an expression.
 
-Expr = (context) ->
+AssignmentExpression = (operator, left, right) ->
+  type: 'AssignmentExpression'
+  operator: operator
+  left: left
+  right: right
+
+BinaryExpression = (operator, left, right) ->
+  type: 'BinaryExpression'
+  operator: operator
+  left: left
+  right: right
+
+Literal = (value, raw) ->
+  type: 'Literal'
+  value: value
+  raw: raw
+
+SequenceExpression = (expressions) ->
+  type: 'SequenceExpression'
+  expressions: expressions
+
+SExpr = (context) ->
   Nodes =
     Node: null
     Program: null
@@ -592,10 +613,10 @@ Expr = (context) ->
     EmptyStatement: null
 
     BlockStatement: (node) ->
-      "(, #{ concat (expr statement for statement in node.body) })"
+      "(, #{ concat (sexpr statement for statement in node.body) })"
 
     ExpressionStatement: (node) ->
-      expr node.expression
+      sexpr node.expression
 
     IfStatement: null
     LabeledStatement: null
@@ -605,7 +626,7 @@ Expr = (context) ->
     SwitchStatement: null
 
     ReturnStatement: (node) ->
-      "(return #{expr node.argument})"
+      "(return #{sexpr node.argument})"
 
     ThrowStatement: null
     TryStatement: null
@@ -622,12 +643,12 @@ Expr = (context) ->
     VariableDeclaration: (node) ->
       switch node.kind
         when 'var'
-          concat (expr declarator for declarator in node.declarations)
+          concat (sexpr declarator for declarator in node.declarations)
         else # 'let', 'const'
           throw new Error "Unsupported #{node.kind} #{node.type}"
 
     VariableDeclarator: (node) ->
-      "(= #{expr node.id} #{expr node.init})"
+      "(= #{sexpr node.id} #{sexpr node.init})"
 
     Expression: null
     ThisExpression: null
@@ -636,7 +657,10 @@ Expr = (context) ->
     Property: null
     FunctionExpression: null
     ArrowExpression: null
-    SequenceExpression: null
+
+    SequenceExpression: (node) ->
+      "(, #{ concat (sexpr expression for expression in node.expressions) })"
+
     UnaryExpression: null
 
     BinaryExpression: (node) ->
@@ -662,22 +686,34 @@ Expr = (context) ->
           # '<<', '>>', '>>>', '|', '^', '&', 'in', 'instanceof', '..'
           throw new "Unsupported #{node.type} operator [#{operator}]"
 
-      "(#{op} #{expr left} #{expr right})"
+      "(#{op} #{sexpr left} #{sexpr right})"
 
     AssignmentExpression: (node) ->
       { operator, left, right } = node
       switch operator
         when '='
-          "(= #{expr left} #{expr right})"
+          "(= #{sexpr left} #{sexpr right})"
         else
           # '+=', '-=', '*=', '/=', '%=', '<<=', '>>=', '>>>=', '|=', '^=', '&='
-          expr 
-            type: 'BinaryExpression'
-            operator: operator.substr 0, operator.length - 1
-            left: left
-            right: right
+          op = operator.substr 0, operator.length - 1
+          sexpr BinaryExpression op, left, right
 
-    UpdateExpression: null
+    UpdateExpression: (node) ->
+      { operator, argument, prefix } = node
+      op = operator.substr 0, operator.length - 1
+      incrOrDecrExpression = AssignmentExpression '=', argument, BinaryExpression op, argument, Literal 1, '1'
+
+      if prefix
+        # ++a --> a = a + 1
+        sexpr incrOrDecrExpression
+
+      else
+        # a++ --> (a = a + 1, a - 1)
+        sexpr SequenceExpression [
+          incrOrDecrExpression
+          BinaryExpression '-', argument, Literal 1, '1'
+        ]
+
     LogicalExpression: null
     ConditionalExpression: null
     NewExpression: null
@@ -707,7 +743,7 @@ Expr = (context) ->
     Literal: (node) ->
       { value, raw } = node
       if value is null
-        expr value
+        sexpr value
 
       else if _.isNumber value
         "##{raw}"
@@ -737,15 +773,11 @@ Expr = (context) ->
       'void': null
       'delete': null
 
-    UpdateOperator:
-      '++': null
-      '--': null
-
     LogicalOperator:
       '||': null
       '&&': null
 
-  expr = (node) ->
+  sexpr = (node) ->
     if handler = (if node then Nodes[node.type] else Nodes.Null)
       handler node
     else
@@ -786,11 +818,12 @@ map = (symbols, func) ->
     for param, paramIndex in astFunc.params
       symbolTable[param.name] = symbols[paramIndex]
 
-    expr = Expr
+    sexpr = SExpr
       symbols: symbolTable
 
     try
-      expr astFunc.body
+      sexpr astFunc.body
+
     catch error
       console.log dump astFunc.body 
       throw error
