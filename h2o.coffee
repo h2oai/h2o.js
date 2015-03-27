@@ -3,6 +3,7 @@ fj = require 'forkjoin'
 _ = require 'lodash'
 _request = require 'request'
 _uuid = require 'node-uuid'
+transpiler = require './americano.js'
 
 lib = {}
 
@@ -53,31 +54,36 @@ unwrap = (go, transform) ->
     else
       go null, transform result
 
-getH2OType = (obj) ->
-  obj?.__h2o_js__?.type
+META = '__h2o_js__'
+extend = (obj, attributes) ->
+  meta = obj[META] ?= {}
+  for attribute, value of attributes
+    meta[attribute] = value
+  obj
+
+reflect = (obj, attribute) ->
+  if meta = obj?[META] then meta[attribute] else meta
+
+typeOf = (obj) -> reflect obj, 'type'
 
 extendFrame = (frame) ->
-  frame.__h2o_js__ =
-    type: 'Frame'
-  frame
+  extend frame, type: 'Frame'
 
 extractFrameKey = (a) ->
   if _.isString a
     a
-  else if 'Frame' is getH2OType a
+  else if 'Frame' is typeOf a
     a.key.name
   else
     undefined
 
 extendModel = (model) ->
-  model.__h2o_js__ =
-    type: 'Model'
-  model
+  extend model, type: 'Model'
 
 extractModelKey = (a) ->
   if _.isString a
     a
-  else if 'Model' is getH2OType a
+  else if 'Model' is typeOf a
     a.key.name
   else
     undefined
@@ -109,7 +115,9 @@ connect = (host) ->
     console.log "#{opts.method} #{opts.url}"
 
     _request opts, (error, response, body) ->
-      if error
+      if not error and response.statusCode is 200
+        go error, body
+      else
         cause = if body?.__meta?.schema_type is 'H2OError'
           h2oError = new H2OError body.exception_msg
           h2oError.remoteMessage = body.dev_msg
@@ -130,15 +138,13 @@ connect = (host) ->
         else
           ''
         go new H2OError "Error calling #{opts.method} #{opts.url}#{parameters}.", cause
-      else
-        go error, body
 
 lib.connect = (host='http://localhost:54321') ->
 
   request = connect host
 
   #
-  # Low level APIs
+  # HTTP methods
   #
 
   get = (args..., go) ->
@@ -155,11 +161,11 @@ lib.connect = (host='http://localhost:54321') ->
     request 'DELETE', route, undefined, undefined, go
 
   #
-  # High level APIs
+  # Remote API
   #
 
-  createFrame = method (parameters, go) ->
-    post '/2/CreateFrame.json', parameters, go
+  #createFrame = method (parameters, go) ->
+  #  post '/2/CreateFrame.json', parameters, go
 
   splitFrame = method (parameters, go) ->
 #     form =
@@ -174,11 +180,18 @@ lib.connect = (host='http://localhost:54321') ->
   getFrame = method (key, go) ->
     get "/3/Frames.json/#{enc key}", unwrap go, (result) -> _.head extendFrames result.frames
 
-  deleteFrame = method (key, go) ->
+  removeFrame = method (key, go) ->
     del "/3/Frames.json/#{enc key}", go
 
   getRDDs = method (go) ->
     get '/3/RDDs.json', unwrap go, (result) -> result.rdds
+
+  createColumn = method (frameKey, columnName, dependencies..., map, go) ->
+    try
+      expr = transpiler.transpile map
+      go null, expr
+    catch error
+      go error
 
   getColumnSummary = method (key, column, go) ->
     get "/3/Frames.json/#{enc key}/columns/#{enc column}/summary", unwrap go, (result) ->
@@ -228,30 +241,7 @@ lib.connect = (host='http://localhost:54321') ->
       source_keys: encodeArray parameters.source_keys
     post '/2/ParseSetup.json', form, go
 
-  #TODO
-  requestParseSetupPreview = method (sourceKeys, parseType, separator, useSingleQuotes, checkHeader, columnTypes, go) ->
-    parameters = 
-      source_keys: encodeArray sourceKeys
-      parse_type: parseType
-      separator: separator
-      single_quotes: useSingleQuotes
-      check_header: checkHeader
-      column_types: encodeArray columnTypes
-    post '/2/ParseSetup.json', parameters, go
-
   parseFiles = method (parameters, go) ->
-#    parameters =
-#      destination_key: destinationKey
-#      source_keys: encodeArray sourceKeys
-#      parse_type: parseType
-#      separator: separator
-#      number_columns: columnCount
-#      single_quotes: useSingleQuotes
-#      column_names: encodeArray columnNames
-#      column_types: encodeArray columnTypes
-#      check_header: checkHeader
-#      delete_on_done: deleteOnDone
-#      chunk_size: chunkSize
     post '/2/Parse.json', (encodeObject parameters), go
 
   # import-and-parse
@@ -264,6 +254,7 @@ lib.connect = (host='http://localhost:54321') ->
         source_keys: result.keys
 
     parseResult = fj.lift setupResult, (result) ->
+      dump result
       # TODO override with user-parameters
       parseFiles
         destination_key: result.destination_key
@@ -286,6 +277,7 @@ lib.connect = (host='http://localhost:54321') ->
 
     frame go
 
+  #TODO obsolete
   patchUpModels = method (models) ->
     for model in models
       for parameter in model.parameters
@@ -305,7 +297,7 @@ lib.connect = (host='http://localhost:54321') ->
     get "/3/Models.json/#{enc key}", unwrap go, (result) ->
       _.head patchUpModels extendModels result.models
 
-  deleteModel = method (key, go) ->
+  removeModel = method (key, go) ->
     del "/3/Models.json/#{enc key}", go
 
   getModelBuilders = method (go) ->
@@ -439,6 +431,9 @@ lib.connect = (host='http://localhost:54321') ->
   requestAbout = method (go) ->
     get '/3/About.json', go
 
+  evaluate = method (ast, go) ->
+    post '/1/Rapids.json', { ast: enc ast }, go
+
   getSchemas = method (go) ->
     get '/1/Metadata/schemas.json', go
 
@@ -451,11 +446,53 @@ lib.connect = (host='http://localhost:54321') ->
   getEndpoint = method (index, go) ->
     get "/1/Metadata/endpoints.json/#{index}", go
 
-  deleteAll = method (go) ->
+  remove = method (key, go) ->
+    del '/1/Remove.json', go
+
+  removeAll = method (go) ->
     del '/1/RemoveAll.json', go
 
-  shutdown = method (go) ->
+  shutdown = method (go)->
     post "/2/Shutdown.json", {}, go
+
+  #
+  # Data Munging
+  #
+
+  bindVectors = method (vectors, go) ->
+
+  selectVector = method (frame, label, go) ->
+    fj.resolve frame, (error, frame) ->
+      if error
+        go error
+      else
+        for vector, vectorIndex in frame.columns when vector.label is label
+          vectorKey = frame.vec_keys[vectorIndex].name
+          return go null, extend vector,
+            type: 'Vector'
+            key: vectorKey
+        go new Error "Vector [#{label}] not found in Frame [#{frame.key.name}]"
+
+  mapVector = method (vectors, map, go) ->
+    fj.join vectors, (error, vectors) ->
+      if error
+        go error 
+      else
+        vectorKeys = vectors.map (vector) -> reflect vector, 'key'
+        try
+          ast = transpiler.map vectorKeys, map
+          evaluate ast, (error, vector) ->
+            if error
+              go error
+            else
+              go null, extend vector,
+                type: 'Vector'
+                key: 'fooooooo'
+        catch error
+          go error
+
+  createFrame = method (parameters, go) ->
+
 
   # Files
   importFile: importFile
@@ -469,7 +506,7 @@ lib.connect = (host='http://localhost:54321') ->
   splitFrame: splitFrame
   getFrames: getFrames
   getFrame: getFrame
-  deleteFrame: deleteFrame
+  removeFrame: removeFrame
 
   # Summary
   getColumnSummary: getColumnSummary
@@ -478,7 +515,7 @@ lib.connect = (host='http://localhost:54321') ->
   createModel: createModel
   getModels: getModels
   getModel: getModel
-  deleteModel: deleteModel
+  removeModel: removeModel
 
   # Predictions
   predict: predict
@@ -497,7 +534,16 @@ lib.connect = (host='http://localhost:54321') ->
   getEndpoint: getEndpoint
 
   # Clean up
-  deleteAll: deleteAll
+  remove: remove
+  removeAll: removeAll
   shutdown: shutdown
+
+  # Local
+  bind: bindVectors
+  select: selectVector
+  map: mapVector
+
+  # Types
+  error: H2OError
 
 module.exports = lib
