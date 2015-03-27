@@ -767,21 +767,7 @@ SExpr = (context) ->
         throw new Error "Unsupported literal [#{raw}]"
 
     Null: (node) ->
-      'null'
-
-  Operators:
-    UnaryOperator:
-      '-': null
-      '+': null
-      '!': null
-      '~': null
-      'typeof': null
-      'void': null
-      'delete': null
-
-    LogicalOperator:
-      '||': null
-      '&&': null
+      '#NaN'
 
   sexprs = (sexprs) -> sexprs.join ' '
 
