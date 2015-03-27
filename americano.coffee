@@ -582,46 +582,108 @@ dump = (a) -> console.log JSON.stringify a, null, 2
 # }
 # A literal token. Note that a literal can be an expression.
 
+Node = 'Node'
+Program = 'Program'
+Function = 'Function'
+Statement = 'Statement'
+EmptyStatement = 'EmptyStatement'
+BlockStatement = 'BlockStatement'
+ExpressionStatement = 'ExpressionStatement'
+IfStatement = 'IfStatement'
+LabeledStatement = 'LabeledStatement'
+BreakStatement = 'BreakStatement'
+ContinueStatement = 'ContinueStatement'
+WithStatement = 'WithStatement'
+SwitchStatement = 'SwitchStatement'
+ReturnStatement = 'ReturnStatement'
+ThrowStatement = 'ThrowStatement'
+TryStatement = 'TryStatement'
+WhileStatement = 'WhileStatement'
+DoWhileStatement = 'DoWhileStatement'
+ForStatement = 'ForStatement'
+ForInStatement = 'ForInStatement'
+ForOfStatement = 'ForOfStatement'
+LetStatement = 'LetStatement'
+DebuggerStatement = 'DebuggerStatement'
+Declaration = 'Declaration'
+FunctionDeclaration = 'FunctionDeclaration'
+VariableDeclaration = 'VariableDeclaration'
+VariableDeclarator = 'VariableDeclarator'
+Expression = 'Expression'
+ThisExpression = 'ThisExpression'
+ArrayExpression = 'ArrayExpression'
+ObjectExpression = 'ObjectExpression'
+Property = 'Property'
+FunctionExpression = 'FunctionExpression'
+ArrowExpression = 'ArrowExpression'
+SequenceExpression = 'SequenceExpression'
+UnaryExpression = 'UnaryExpression'
+BinaryExpression = 'BinaryExpression'
+AssignmentExpression = 'AssignmentExpression'
+UpdateExpression = 'UpdateExpression'
+LogicalExpression = 'LogicalExpression'
+ConditionalExpression = 'ConditionalExpression'
+NewExpression = 'NewExpression'
+CallExpression = 'CallExpression'
+MemberExpression = 'MemberExpression'
+YieldExpression = 'YieldExpression'
+ComprehensionExpression = 'ComprehensionExpression'
+GeneratorExpression = 'GeneratorExpression'
+GraphExpression = 'GraphExpression'
+GraphIndexExpression = 'GraphIndexExpression'
+LetExpression = 'LetExpression'
+Pattern = 'Pattern'
+ObjectPattern = 'ObjectPattern'
+ArrayPattern = 'ArrayPattern'
+SwitchCase = 'SwitchCase'
+CatchClause = 'CatchClause'
+ComprehensionBlock = 'ComprehensionBlock'
+ComprehensionIf = 'ComprehensionIf'
+Identifier = 'Identifier'
+Literal = 'Literal'
+
+
+
 Funcs =
   toDate: 'as.Date'
   toString: 'as.character'
   toNumber: 'as.numeric'
 
-Ast = (type, args...) ->
+Asts =
+  AssignmentExpression: (operator, left, right) ->
+    operator: operator
+    left: left
+    right: right
 
-AssignmentExpression = (operator, left, right) ->
-  type: 'AssignmentExpression'
-  operator: operator
-  left: left
-  right: right
+  BinaryExpression: (operator, left, right) ->
+    operator: operator
+    left: left
+    right: right
 
-BinaryExpression = (operator, left, right) ->
-  type: 'BinaryExpression'
-  operator: operator
-  left: left
-  right: right
+  Literal: (value, raw) ->
+    value: value
+    raw: raw
 
-Literal = (value, raw) ->
-  type: 'Literal'
-  value: value
-  raw: raw
+  SequenceExpression: (expressions) ->
+    expressions: expressions
 
-SequenceExpression = (expressions) ->
-  type: 'SequenceExpression'
-  expressions: expressions
+  CallExpression: (name, args) ->
+    callee:
+      type: Identifier
+      name: name
+    "arguments": args
 
-CallExpression = (name, args) ->
-  type: 'CallExpression'
-  callee:
-    type: 'Identifier'
-    name: name
-  "arguments": args
+Ast = _.mapValues Asts, (build, type) ->
+  (args...) ->
+    ast = build.apply null, args
+    ast.type = type
+    ast
 
 Call = (name) ->
   (args...) ->
-    CallExpression name, args
+    Ast.CallExpression name, args
 
-Func = _.forIn Funcs, (remoteName, localName) ->
+Func = _.mapValues Funcs, (remoteName, localName) ->
   Call localName
 
 SExpr = (context) ->
@@ -694,7 +756,7 @@ SExpr = (context) ->
             # The unary + operator converts its operand to Number type.
             sexpr Func.toNumber argument
           when '-'
-            sexpr BinaryExpression '*', argument, Literal -1, '-1'
+            sexpr Ast.BinaryExpression '*', argument, Ast.Literal -1, '-1'
           else
             # '~', 'typeof', 'void', 'delete'
             throw new Error "Unsupported #{node.type} prefix operator [#{operator}]"
@@ -735,12 +797,12 @@ SExpr = (context) ->
         else
           # '+=', '-=', '*=', '/=', '%=', '<<=', '>>=', '>>>=', '|=', '^=', '&='
           op = operator.substr 0, operator.length - 1
-          sexpr BinaryExpression op, left, right
+          sexpr Ast.BinaryExpression op, left, right
 
     UpdateExpression: (node) ->
       { operator, argument, prefix } = node
       op = operator.substr 0, operator.length - 1
-      incrOrDecrExpression = AssignmentExpression '=', argument, BinaryExpression op, argument, Literal 1, '1'
+      incrOrDecrExpression = Ast.AssignmentExpression '=', argument, Ast.BinaryExpression op, argument, Ast.Literal 1, '1'
 
       if prefix
         # ++a --> a = a + 1
@@ -748,9 +810,9 @@ SExpr = (context) ->
 
       else
         # a++ --> (a = a + 1, a - 1)
-        sexpr SequenceExpression [
+        sexpr Ast.SequenceExpression [
           incrOrDecrExpression
-          BinaryExpression '-', argument, Literal 1, '1'
+          Ast.BinaryExpression '-', argument, Ast.Literal 1, '1'
         ]
 
     LogicalExpression: (node) ->
@@ -816,7 +878,7 @@ SExpr = (context) ->
   sexprs = (sexprs) -> sexprs.join ' '
 
   sexprt = (node) ->
-    sexpr if node.type is 'ReturnStatement' then node.argument else node
+    sexpr if node.type is ReturnStatement then node.argument else node
 
   sexpr = (node) ->
     if handler = (if node then Nodes[node.type] else Nodes.Null)
