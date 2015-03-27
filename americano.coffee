@@ -582,6 +582,13 @@ dump = (a) -> console.log JSON.stringify a, null, 2
 # }
 # A literal token. Note that a literal can be an expression.
 
+Funcs =
+  toDate: 'as.Date'
+  toString: 'as.character'
+  toNumber: 'as.numeric'
+
+Ast = (type, args...) ->
+
 AssignmentExpression = (operator, left, right) ->
   type: 'AssignmentExpression'
   operator: operator
@@ -602,6 +609,20 @@ Literal = (value, raw) ->
 SequenceExpression = (expressions) ->
   type: 'SequenceExpression'
   expressions: expressions
+
+CallExpression = (name, args) ->
+  type: 'CallExpression'
+  callee:
+    type: 'Identifier'
+    name: name
+  "arguments": args
+
+Call = (name) ->
+  (args...) ->
+    CallExpression name, args
+
+Func = _.forIn Funcs, (remoteName, localName) ->
+  Call localName
 
 SExpr = (context) ->
   Nodes =
@@ -667,7 +688,24 @@ SExpr = (context) ->
     SequenceExpression: (node) ->
       "(, #{ sexprs (sexpr expression for expression in node.expressions) })"
 
-    UnaryExpression: null
+    UnaryExpression: (node) ->
+      { operator, argument, prefix } = node
+      if prefix
+        switch operator
+          when '!'
+            "(not #{sexpr argument})"
+          when '+'
+            # http://www.ecma-international.org/ecma-262/5.1/#sec-11.4.6
+            # The unary + operator converts its operand to Number type.
+            sexpr Func.toNumber argument
+          when '-'
+            sexpr BinaryExpression '*', argument, Literal -1, '-1'
+          else
+            # '~', 'typeof', 'void', 'delete'
+            throw new Error "Unsupported #{node.type} prefix operator [#{operator}]"
+      else
+        # Forth?
+        throw new Error "Unsupported #{node.type} postfix operator [#{operator}]"
 
     BinaryExpression: (node) ->
       { operator, left, right } = node
