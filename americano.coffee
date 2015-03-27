@@ -670,6 +670,7 @@ Expr = (context) ->
         when '='
           "(= #{expr left} #{expr right})"
         else
+          # '+=', '-=', '*=', '/=', '%=', '<<=', '>>=', '>>>=', '|=', '^=', '&='
           expr 
             type: 'BinaryExpression'
             operator: operator.substr 0, operator.length - 1
@@ -735,44 +736,6 @@ Expr = (context) ->
       'typeof': null
       'void': null
       'delete': null
-
-    BinaryOperator:
-      '==': null
-      '!=': null
-      '===': null
-      '!==': null
-      '<': null
-      '<=': null
-      '>': null
-      '>=': null
-      '<<': null
-      '>>': null
-      '>>>': null
-      '+': null
-      '-': null
-      '*': null
-      '/': null
-      '%': null
-      '|': null
-      '^': null
-      '&': null
-      'in': null
-      'instanceof': null
-      '..': null
-
-    AssignmentOperator:
-      '=': null
-      '+=': null
-      '-=': null
-      '*=': null
-      '/=': null
-      '%=': null
-      '<<=': null
-      '>>=': null
-      '>>>=': null
-      '|=': null
-      '^=': null
-      '&=': null
 
     UpdateOperator:
       '++': null
