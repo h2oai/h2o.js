@@ -635,12 +635,7 @@ SExpr = (context) ->
       if node.body.length is 1
         sexprt node.body[0]
       else
-        exprs = for statement, i in node.body
-          if i is node.body.length - 1
-            sexprt statement
-          else
-            sexpr statement
-        "(, #{ sexprs exprs })"
+        "(, #{ sexprs (sexpr statement for statement in node.body) })"
 
     ExpressionStatement: (node) ->
       sexpr node.expression
