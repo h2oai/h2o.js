@@ -612,7 +612,14 @@ SExpr = (context) ->
     EmptyStatement: null
 
     BlockStatement: (node) ->
-      "(, #{ sexprs (sexpr statement for statement in node.body) })"
+      if node.body.length is 1
+        statement = node.body[0]
+        if statement.type is 'ReturnStatement'
+          sexpr statement.argument
+        else
+          sexpr statement
+      else
+        "(, #{ sexprs (sexpr statement for statement in node.body) })"
 
     ExpressionStatement: (node) ->
       sexpr node.expression
@@ -683,7 +690,7 @@ SExpr = (context) ->
           'mod'
         else
           # '<<', '>>', '>>>', '|', '^', '&', 'in', 'instanceof', '..'
-          throw new "Unsupported #{node.type} operator [#{operator}]"
+          throw new Error "Unsupported #{node.type} operator [#{operator}]"
 
       "(#{op} #{sexpr left} #{sexpr right})"
 
