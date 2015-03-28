@@ -9,8 +9,11 @@ h2o = libh2o.connect()
 dump = (a) -> console.log JSON.stringify a, null, 2
 
 test.only 'transpiler.map', (t) ->
-  for [ expected, symbols, func ] in transpilerTestCases.map
-    t.equal transpiler.map(symbols, func), expected
+  for [ message, expected, symbols, func ] in transpilerTestCases.map
+    if expected is null
+      t.throws (-> transpiler.map(symbols, func)), undefined, message
+    else
+      t.equal transpiler.map(symbols, func), expected, message
 
   t.end()
 
