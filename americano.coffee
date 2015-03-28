@@ -693,25 +693,14 @@ SExpr = (context) ->
     Function: null
     Statement: null
     EmptyStatement: null
-    BlockStatement: (node) ->
-      if node.body.length is 1
-        sexprt node.body[0]
-      else
-        "(, #{ sexprs (sexpr statement for statement in node.body) })"
-
-    ExpressionStatement: (node) ->
-      sexpr node.expression
-
+    BlockStatement: null
     IfStatement: null
     LabeledStatement: null
     BreakStatement: null
     ContinueStatement: null
     WithStatement: null
     SwitchStatement: null
-
-    ReturnStatement: (node) ->
-      "(return #{sexpr node.argument})"
-
+    ReturnStatement: null
     ThrowStatement: null
     TryStatement: null
     WhileStatement: null
@@ -723,17 +712,8 @@ SExpr = (context) ->
     DebuggerStatement: null
     Declaration: null
     FunctionDeclaration: null
-
-    VariableDeclaration: (node) ->
-      switch node.kind
-        when 'var'
-          sexprs (sexpr declarator for declarator in node.declarations)
-        else # 'let', 'const'
-          throw new Error "Unsupported #{node.kind} #{node.type}"
-
-    VariableDeclarator: (node) ->
-      "(= #{sexpr node.id} #{sexpr node.init})"
-
+    VariableDeclaration: null
+    VariableDeclarator: null
     Expression: null
     ThisExpression: null
     ArrayExpression: null
@@ -741,6 +721,10 @@ SExpr = (context) ->
     Property: null
     FunctionExpression: null
     ArrowExpression: null
+
+    ExpressionStatement: (node) ->
+      sexpr node.expression
+
 
     SequenceExpression: (node) ->
       "(, #{ sexprs (sexpr expression for expression in node.expressions) })"
@@ -789,31 +773,9 @@ SExpr = (context) ->
 
       "(#{op} #{sexpr left} #{sexpr right})"
 
-    AssignmentExpression: (node) ->
-      { operator, left, right } = node
-      switch operator
-        when '='
-          "(= #{sexpr left} #{sexpr right})"
-        else
-          # '+=', '-=', '*=', '/=', '%=', '<<=', '>>=', '>>>=', '|=', '^=', '&='
-          op = operator.substr 0, operator.length - 1
-          sexpr Ast.BinaryExpression op, left, right
+    AssignmentExpression: null
 
-    UpdateExpression: (node) ->
-      { operator, argument, prefix } = node
-      op = operator.substr 0, operator.length - 1
-      incrOrDecrExpression = Ast.AssignmentExpression '=', argument, Ast.BinaryExpression op, argument, Ast.Literal 1, '1'
-
-      if prefix
-        # ++a --> a = a + 1
-        sexpr incrOrDecrExpression
-
-      else
-        # a++ --> (a = a + 1, a - 1)
-        sexpr Ast.SequenceExpression [
-          incrOrDecrExpression
-          Ast.BinaryExpression '-', argument, Ast.Literal 1, '1'
-        ]
+    UpdateExpression: null
 
     LogicalExpression: (node) ->
       { operator, left, right } = node
@@ -877,9 +839,6 @@ SExpr = (context) ->
 
   sexprs = (sexprs) -> sexprs.join ' '
 
-  sexprt = (node) ->
-    sexpr if node.type is ReturnStatement then node.argument else node
-
   sexpr = (node) ->
     if handler = (if node then Nodes[node.type] else Nodes.Null)
       handler node
@@ -900,7 +859,6 @@ walk = (ast, f) ->
 
   return
 
-
 dumpNode = (node) ->
   console.log '----------------------------------'
   for k, v of node when not _.isFunction v
@@ -911,24 +869,36 @@ dumpNode = (node) ->
 map = (symbols, func) ->
   if _.isFunction func
     source = func.toString()
-    ast = esprima.parse "var _O_o_ = #{source}"
-    astFunc = ast.body[0].declarations[0].init  
+    astProgram = esprima.parse "var _O_o_ = #{source}"
+    astFunc = astProgram.body[0].declarations[0].init  
 
-    if astFunc.params.length isnt symbols.length
-      throw new Error "Invalid number of formal parameters in map function: expected [#{symbols.length}], found [#{astFunc.params.length}] at #{source}"
+    astFuncParams = astFunc.params
+    if astFuncParams.length isnt symbols.length
+      throw new Error "Invalid number of formal parameters in map function: expected [#{symbols.length}], found [#{astFuncParams.length}] at #{source}"
+    astFuncBody = astFunc.body
+    if astFuncBody.type is BlockStatement
+      if astFuncBody.body.length is 1
+        ast = if (statement = astFuncBody.body[0]).type is ReturnStatement
+          statement.argument
+        else
+          statement
+      else
+        throw new Error 'Multiple statements are not supported in function bodies'
+    else
+      throw new Error "Unsupported operation: [#{astFuncBody.type}]"
 
     symbolTable = {}
-    for param, paramIndex in astFunc.params
+    for param, paramIndex in astFuncParams
       symbolTable[param.name] = symbols[paramIndex]
 
     sexpr = SExpr
       symbols: symbolTable
 
     try
-      sexpr astFunc.body
+      sexpr ast
 
     catch error
-      console.log dump astFunc.body 
+      console.log dump ast
       throw error
 
   else
