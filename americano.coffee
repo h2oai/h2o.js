@@ -650,11 +650,6 @@ Funcs =
   toNumber: 'as.numeric'
 
 Asts =
-  AssignmentExpression: (operator, left, right) ->
-    operator: operator
-    left: left
-    right: right
-
   BinaryExpression: (operator, left, right) ->
     operator: operator
     left: left
@@ -663,9 +658,6 @@ Asts =
   Literal: (value, raw) ->
     value: value
     raw: raw
-
-  SequenceExpression: (expressions) ->
-    expressions: expressions
 
   CallExpression: (name, args) ->
     callee:
@@ -721,13 +713,8 @@ SExpr = (context) ->
     Property: null
     FunctionExpression: null
     ArrowExpression: null
-
-    ExpressionStatement: (node) ->
-      sexpr node.expression
-
-
-    SequenceExpression: (node) ->
-      "(, #{ sexprs (sexpr expression for expression in node.expressions) })"
+    ExpressionStatement: null
+    SequenceExpression: null
 
     UnaryExpression: (node) ->
       { operator, argument, prefix } = node
@@ -791,7 +778,10 @@ SExpr = (context) ->
 
     ConditionalExpression: null
     NewExpression: null
-    CallExpression: null
+
+    CallExpression: (node) ->
+      "(#{sexpr node.callee} #{sexprs (sexpr arg for arg in node.arguments)})"
+
     MemberExpression: null
     YieldExpression: null
     ComprehensionExpression: null
@@ -808,11 +798,15 @@ SExpr = (context) ->
     ComprehensionIf: null
 
     Identifier: (node) ->
-      if symbol = context.symbols[node.name]
+      if node.name is 'NaN'
+        sexpr null
+      else if symbol = context.globalSymbols[node.name]
         # Replace with lookup
         "%#{symbol}"
+      else if callable = context.globalFuncs[node.name]
+        callable
       else
-        node.name
+        throw new Error "Unknown #{node.type}: [#{node.name}]"
 
     Literal: (node) ->
       { value, raw } = node
@@ -823,7 +817,7 @@ SExpr = (context) ->
         "##{raw}"
 
       else if _.isString value
-        '"' + raw + '"'
+        '"' + value + '"'
 
       else if _.isBoolean value
         if value
@@ -843,7 +837,6 @@ SExpr = (context) ->
     if handler = (if node then Nodes[node.type] else Nodes.Null)
       handler node
     else
-      dumpNode node
       throw new Error "Unsupported operation: [#{node.type}]"
 
 walk = (ast, f) -> 
@@ -857,13 +850,6 @@ walk = (ast, f) ->
     else if 'string' is typeof node.type
       walk node, f
 
-  return
-
-dumpNode = (node) ->
-  console.log '----------------------------------'
-  for k, v of node when not _.isFunction v
-    console.log "#{k}: #{v}"
-  console.log '----------------------------------'
   return
 
 parse = (f, expectedArity) ->
@@ -880,8 +866,6 @@ parse = (f, expectedArity) ->
     throw new Error "Invalid function arity: expected [#{expectedArity}], found [#{params.length}] at #{source}"
 
   block = func.body
-  if block.type isnt BlockStatement
-    throw new Error "Unsupported operation: [#{block.type}]"
 
   if block.body.length > 1
     throw new Error 'Multiple statements are not supported in function bodies'
@@ -899,12 +883,13 @@ map = (symbols, func) ->
 
   [ params, ast ] = parse func, symbols.length
 
-  symbolTable = {}
+  globalSymbols = {}
   for param, paramIndex in params
-    symbolTable[param] = symbols[paramIndex]
+    globalSymbols[param] = symbols[paramIndex]
 
   sexpr = SExpr
-    symbols: symbolTable
+    globalSymbols: globalSymbols
+    globalFuncs: Funcs
 
   try
     sexpr ast
