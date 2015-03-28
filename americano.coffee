@@ -866,44 +866,52 @@ dumpNode = (node) ->
   console.log '----------------------------------'
   return
 
+parse = (f, expectedArity) ->
+  unless _.isFunction f
+    throw new Error "Not a function: [#{f}]"
+
+  source = f.toString()
+
+  program = esprima.parse "var _O_o_ = #{source}"
+  func = program.body[0].declarations[0].init  
+
+  params = func.params
+  if params.length isnt expectedArity
+    throw new Error "Invalid function arity: expected [#{expectedArity}], found [#{params.length}] at #{source}"
+
+  block = func.body
+  if block.type isnt BlockStatement
+    throw new Error "Unsupported operation: [#{block.type}]"
+
+  if block.body.length > 1
+    throw new Error 'Multiple statements are not supported in function bodies'
+
+  statement = block.body[0]
+  if statement.type isnt ReturnStatement
+    throw new Error "No #{ReturnStatement} found in function body"
+
+  [ 
+    params.map (param) -> param.name
+    statement.argument
+  ]
+
 map = (symbols, func) ->
-  if _.isFunction func
-    source = func.toString()
-    astProgram = esprima.parse "var _O_o_ = #{source}"
-    astFunc = astProgram.body[0].declarations[0].init  
 
-    astFuncParams = astFunc.params
-    if astFuncParams.length isnt symbols.length
-      throw new Error "Invalid number of formal parameters in map function: expected [#{symbols.length}], found [#{astFuncParams.length}] at #{source}"
-    astFuncBody = astFunc.body
-    if astFuncBody.type is BlockStatement
-      if astFuncBody.body.length is 1
-        ast = if (statement = astFuncBody.body[0]).type is ReturnStatement
-          statement.argument
-        else
-          statement
-      else
-        throw new Error 'Multiple statements are not supported in function bodies'
-    else
-      throw new Error "Unsupported operation: [#{astFuncBody.type}]"
+  [ params, ast ] = parse func, symbols.length
 
-    symbolTable = {}
-    for param, paramIndex in astFuncParams
-      symbolTable[param.name] = symbols[paramIndex]
+  symbolTable = {}
+  for param, paramIndex in params
+    symbolTable[param] = symbols[paramIndex]
 
-    sexpr = SExpr
-      symbols: symbolTable
+  sexpr = SExpr
+    symbols: symbolTable
 
-    try
-      sexpr ast
+  try
+    sexpr ast
 
-    catch error
-      console.log dump ast
-      throw error
-
-  else
-    undefined
-
+  catch error
+    console.log dump ast
+    throw error
 
 #
 # Notes
