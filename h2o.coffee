@@ -427,7 +427,15 @@ lib.connect = (host='http://localhost:54321') ->
 
   evaluate = method (ast, go) ->
     console.log ast
-    post '/1/Rapids.json', { ast: ast }, go
+    post '/1/Rapids.json', { ast: ast }, (error, result) ->
+      if error
+        go error
+      else
+        #TODO HACK - this api returns a 200 OK on failures
+        if result.error
+          go new Error result.error
+        else
+          go null, result
 
   getSchemas = method (go) ->
     get '/1/Metadata/schemas.json', go
