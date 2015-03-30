@@ -26,17 +26,6 @@ test 'createColumn', (t) ->
   departureTime2 = h2o.map departureTime, (a) -> 100 + a * 2
   departureTimes = h2o.bind [ departureTime, departureTime1, departureTime2 ]
 
-  departureTimes (error, data) ->
-    if error
-      console.log '----------------- FAIL ----------------------'
-      dump error
-    else
-      dump data
-
-  return t.end()
-
-
-  # TODO failing
   savedFrame = h2o.createFrame
     name: "departed"
     columns:

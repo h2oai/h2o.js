@@ -13,7 +13,7 @@ deepClone = (a) -> JSON.parse JSON.stringify a
 
 enc = encodeURIComponent
 
-uuid = -> _uuid.v4()
+uuid = -> _uuid.v4().replace /\-/g, ''
 
 method = (f) ->
   (args...) ->
@@ -454,6 +454,22 @@ lib.connect = (host='http://localhost:54321') ->
   # Data Munging
   #
 
+  whitespace = /\s+/
+
+  astString = (string) -> JSON.stringify string
+  astNumber = (number) -> "##{number}"
+  astWrite = (key) -> if whitespace.test key then astString key else "!#{key}"
+  astRead = (key) -> if whitespace.test key then astString key else "%#{key}"
+  astList = (list) -> "{#{ list.join ';' }}"
+  astRange = (start, end) -> "{(: #{astNumber start} #{astNumber end})}"
+  astStrings = (strings) -> astList (astString string for string in strings)
+  astNumbers = (numbers) -> astList (astNumber number for number in numbers)
+  astPut = (key, op) -> "(= #{astWrite key} #{op})"
+  astBind = (keys) -> "(cbind #{(keys.map astRead).join ' '})"
+  astColNames = (key, names) ->
+    "(colnames= #{astRead key} #{astRange 0, names.length - 1} #{astStrings names})"
+  astBlock = (ops...) -> "(, #{ops.join ' '})"
+
   selectVector = method (frame, label, go) ->
     fj.resolve frame, (error, frame) ->
       if error
@@ -476,8 +492,7 @@ lib.connect = (host='http://localhost:54321') ->
         try
           op = transpiler.map vectorKeys, func
           targetKey = do uuid
-          ast = "(= !#{targetKey} #{op})"
-          evaluate ast, (error, vector) ->
+          evaluate (astPut targetKey, op), (error, vector) ->
             if error
               go error
             else
@@ -487,22 +502,20 @@ lib.connect = (host='http://localhost:54321') ->
         catch error
           go error
 
-  bindVectors = method (vectors, go) ->
+  _bindVectors = method (frameKey, vectors, go) ->
     fj.join vectors, (error, vectors) ->
       if error
         go error
       else
-        targetKey = do uuid
-        vectorLookups = vectors
-          .map (vector) -> reflect vector, 'key'
-          .map (key) -> "%#{key}"
-        ast = "(= !#{targetKey} (cbind #{vectorLookups.join ' '}))"
-
-        evaluate ast, (error, foo) ->
+        vectorKeys = vectors.map (vector) -> reflect vector, 'key'
+        evaluate (astPut frameKey, astBind vectorKeys), (error, frame) ->
           if error
             go error
           else
-            go null, foo
+            go null, frame
+
+  bindVectors = method (vectors, go) ->
+    _bindVectors uuid(), vectors, go
 
   createFrame = method (parameters, go) ->
     { name, columns } = parameters
@@ -510,25 +523,15 @@ lib.connect = (host='http://localhost:54321') ->
     columnNames = _.keys columns
     vectors_ = _.values columns
 
-    fj.join vectors_, (error, vectors) ->
+    _bindVectors name, vectors_, (error, frame) ->
       if error
         go error
       else
-        frameKey = JSON.stringify name
-        vectorKeys = vectors.map (vector) -> reflect vector, 'key'
-        vectorLookups = vectorKeys.map (key) -> "%#{key}"
-        #astCbind = "(= #{frameKey} (cbind #{vectorLookups.join ' '}))"
-        astCbind = "(= !#{name} (cbind #{vectorLookups.join ' '}))"
-        astColRange = "(: 0 #{vectors.length - 1})"
-        quotedColnames = columnNames.map (name) -> JSON.stringify name
-        #astColnames = "(colnames= #{frameKey} {#{astColRange}} {#{quotedColnames.join ';' }})"
-        astColnames = "(colnames= %#{name} {#{astColRange}} {#{quotedColnames.join ';' }})"
-        ast = "(, #{astCbind} #{astColnames})"
-        evaluate ast, (error, foo) ->
+        evaluate (astColNames frame.key.name, columnNames), (error, frame) ->
           if error
             go error
           else
-            go null, foo
+            go null, frame
 
   # Files
   importFile: importFile
