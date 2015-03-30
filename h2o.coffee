@@ -186,12 +186,6 @@ lib.connect = (host='http://localhost:54321') ->
   getRDDs = method (go) ->
     get '/3/RDDs.json', unwrap go, (result) -> result.rdds
 
-  createColumn = method (frameKey, columnName, dependencies..., map, go) ->
-    try
-      expr = transpiler.transpile map
-      go null, expr
-    catch error
-      go error
 
   getColumnSummary = method (key, column, go) ->
     get "/3/Frames.json/#{enc key}/columns/#{enc column}/summary", unwrap go, (result) ->
@@ -432,7 +426,8 @@ lib.connect = (host='http://localhost:54321') ->
     get '/3/About.json', go
 
   evaluate = method (ast, go) ->
-    post '/1/Rapids.json', { ast: enc ast }, go
+    console.log ast
+    post '/1/Rapids.json', { ast: ast }, go
 
   getSchemas = method (go) ->
     get '/1/Metadata/schemas.json', go
@@ -459,8 +454,6 @@ lib.connect = (host='http://localhost:54321') ->
   # Data Munging
   #
 
-  bindVectors = method (vectors, go) ->
-
   selectVector = method (frame, label, go) ->
     fj.resolve frame, (error, frame) ->
       if error
@@ -473,26 +466,69 @@ lib.connect = (host='http://localhost:54321') ->
             key: vectorKey
         go new Error "Vector [#{label}] not found in Frame [#{frame.key.name}]"
 
-  mapVector = method (vectors, map, go) ->
-    fj.join vectors, (error, vectors) ->
+  mapVectors = method (arg, func, go) ->
+    vectors_ = if _.isArray arg then arg else [ arg ]
+    fj.join vectors_, (error, vectors) ->
       if error
         go error 
       else
         vectorKeys = vectors.map (vector) -> reflect vector, 'key'
         try
-          ast = transpiler.map vectorKeys, map
+          op = transpiler.map vectorKeys, func
+          targetKey = do uuid
+          ast = "(= !#{targetKey} #{op})"
           evaluate ast, (error, vector) ->
             if error
               go error
             else
               go null, extend vector,
                 type: 'Vector'
-                key: 'fooooooo'
+                key: targetKey
         catch error
           go error
 
-  createFrame = method (parameters, go) ->
+  bindVectors = method (vectors, go) ->
+    fj.join vectors, (error, vectors) ->
+      if error
+        go error
+      else
+        targetKey = do uuid
+        vectorLookups = vectors
+          .map (vector) -> reflect vector, 'key'
+          .map (key) -> "%#{key}"
+        ast = "(= !#{targetKey} (cbind #{vectorLookups.join ' '}))"
 
+        evaluate ast, (error, foo) ->
+          if error
+            go error
+          else
+            go null, foo
+
+  createFrame = method (parameters, go) ->
+    { name, columns } = parameters
+
+    columnNames = _.keys columns
+    vectors_ = _.values columns
+
+    fj.join vectors_, (error, vectors) ->
+      if error
+        go error
+      else
+        frameKey = JSON.stringify name
+        vectorKeys = vectors.map (vector) -> reflect vector, 'key'
+        vectorLookups = vectorKeys.map (key) -> "%#{key}"
+        #astCbind = "(= #{frameKey} (cbind #{vectorLookups.join ' '}))"
+        astCbind = "(= !#{name} (cbind #{vectorLookups.join ' '}))"
+        astColRange = "(: 0 #{vectors.length - 1})"
+        quotedColnames = columnNames.map (name) -> JSON.stringify name
+        #astColnames = "(colnames= #{frameKey} {#{astColRange}} {#{quotedColnames.join ';' }})"
+        astColnames = "(colnames= %#{name} {#{astColRange}} {#{quotedColnames.join ';' }})"
+        ast = "(, #{astCbind} #{astColnames})"
+        evaluate ast, (error, foo) ->
+          if error
+            go error
+          else
+            go null, foo
 
   # Files
   importFile: importFile
@@ -541,7 +577,7 @@ lib.connect = (host='http://localhost:54321') ->
   # Local
   bind: bindVectors
   select: selectVector
-  map: mapVector
+  map: mapVectors
 
   # Types
   error: H2OError
