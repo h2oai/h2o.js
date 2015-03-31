@@ -17,6 +17,35 @@ test.skip 'transpiler.map', (t) ->
 
   t.end()
 
+#
+# airlines = new h2o.Frame h2o.importFrame path: path
+# dt = airlines.columns.DepTime
+# dt1 = airlines.map dt, (a) -> a + 1
+# frame = h2o.filter frame, vecs, func
+# vec = h2o.filter vec, vecs, func
+# frame = h2o.filter vecs, vecs, func
+# frame = h2o.slice frame, 0, 10
+# vec = h2o.slice vec, 0, 10
+# vecs = h2o.slice vecs, 0, 10
+# frame = h2o.concat [ frame ]
+# vec = h2o.concat [ vec ]
+#
+#
+# h2o.map airlines, [ foo, bar ], (foo, bar) -> foo * bar
+#
+# h2o.bind [ foo, bar ]
+# h2o.bind [ foo, bar ]
+#
+# h2o.createFrame 
+# 
+
+dump1 = (error, data) ->
+  if error
+    console.log '----------------- FAIL ----------------------'
+    dump error
+  else
+    dump data
+
 test 'createColumn', (t) ->
   airlines = h2o.importFrame
     path: path.join __dirname, 'examples', 'data', 'AirlinesTrain.csv.zip'
@@ -24,6 +53,7 @@ test 'createColumn', (t) ->
   departureTime = h2o.select airlines, 'DepTime'
   departureTime1 = h2o.map departureTime, (a) -> a + 1
   departureTime2 = h2o.map departureTime, (a) -> 100 + a * 2
+
   departureTimes = h2o.bind [ departureTime, departureTime1, departureTime2 ]
 
   savedFrame = h2o.createFrame
@@ -33,12 +63,11 @@ test 'createColumn', (t) ->
       "departure 1": departureTime1
       "departure 2": departureTime2
 
-  savedFrame (error, data) ->
-    if error
-      console.log '----------------- FAIL ----------------------'
-      dump error
-    else
-      dump data
+  subset = h2o.filter savedFrame, [ departureTime1, departureTime2 ], (dt1, dt2) -> dt1 > 1000 and dt2 > 3000
+
+  subset2 = h2o.slice subset, 20, 100
+
+  subset2 dump1
 
   t.end()
 
