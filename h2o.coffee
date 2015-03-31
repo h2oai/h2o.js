@@ -464,19 +464,51 @@ lib.connect = (host='http://localhost:54321') ->
 
   whitespace = /\s+/
 
-  astString = (string) -> JSON.stringify string
-  astNumber = (number) -> "##{number}"
-  astWrite = (key) -> if whitespace.test key then astString key else "!#{key}"
-  astRead = (key) -> if whitespace.test key then astString key else "%#{key}"
-  astList = (list) -> "{#{ list.join ';' }}"
-  astRange = (start, end) -> "{(: #{astNumber start} #{astNumber end})}"
-  astStrings = (strings) -> astList (astString string for string in strings)
-  astNumbers = (numbers) -> astList (astNumber number for number in numbers)
-  astPut = (key, op) -> "(= #{astWrite key} #{op})"
-  astBind = (keys) -> "(cbind #{(keys.map astRead).join ' '})"
+  astStatement = (args...) ->
+    "(#{args.join ' '})"
+
+  astString = (string) ->
+    JSON.stringify string
+
+  astNumber = (number) ->
+    "##{number}"
+
+  astWrite = (key) ->
+    if whitespace.test key then astString key else "!#{key}"
+
+  astRead = (key) ->
+    if whitespace.test key then astString key else "%#{key}"
+
+  astList = (list) ->
+    "{#{ list.join ';' }}"
+
+  astRange = (begin, end) ->
+    astList [astStatement ':', (astNumber begin), (astNumber end)]
+
+  astStrings = (strings) ->
+    astList (astString string for string in strings)
+
+  astNumbers = (numbers) ->
+    astList (astNumber number for number in numbers)
+
+  astPut = (key, op) ->
+    astStatement '=', (astWrite key), op
+
+  astBind = (keys) ->
+    astStatement 'cbind', (keys.map astRead).join ' '
+
   astColNames = (key, names) ->
-    "(colnames= #{astRead key} #{astRange 0, names.length - 1} #{astStrings names})"
-  astBlock = (ops...) -> "(, #{ops.join ' '})"
+    astStatement 'colnames=', (astRead key), (astRange 0, names.length - 1), (astStrings names)
+
+  astBlock = (ops...) ->
+    "(, #{ops.join ' '})"
+
+  astNull = ->
+    '"null"'
+
+  astFilter = (key, op) ->
+    astStatement '[', (astRead key), op, astNull()
+
 
   selectVector = method (frame, label, go) ->
     fj.resolve frame, (error, frame) ->
@@ -510,6 +542,26 @@ lib.connect = (host='http://localhost:54321') ->
         catch error
           go error
 
+  filterFrame = method (frame_, arg, func, go) ->
+    vectors_ = if _.isArray arg then arg else [ arg ]
+    deps_ = [ frame_ ].concat vectors_
+    fj.join deps_, (error, deps) ->
+      if error
+        go error
+      else
+        [ frame, vectors...] = deps
+        sourceKey = frame.key.name
+        vectorKeys = vectors.map (vector) -> reflect vector, 'key'
+        try
+          op = transpiler.map vectorKeys, func
+          targetKey = do uuid
+          evaluate (astPut targetKey, astFilter sourceKey, op), (error, frame) ->
+            if error
+              go error
+            else
+              go null, frame
+        catch error
+          go error
   _bindVectors = method (frameKey, vectors, go) ->
     fj.join vectors, (error, vectors) ->
       if error
@@ -589,6 +641,7 @@ lib.connect = (host='http://localhost:54321') ->
   bind: bindVectors
   select: selectVector
   map: mapVectors
+  filter: filterFrame
 
   # Types
   error: H2OError
