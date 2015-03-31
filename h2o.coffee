@@ -464,8 +464,11 @@ lib.connect = (host='http://localhost:54321') ->
 
   whitespace = /\s+/
 
-  astStatement = (args...) ->
-    "(#{args.join ' '})"
+  _astStatement = (op, args) ->
+    "(#{[op].concat(args).join ' '})"
+
+  astStatement = (op, args...) ->
+    _astStatement op, args
 
   astString = (string) ->
     JSON.stringify string
@@ -495,13 +498,16 @@ lib.connect = (host='http://localhost:54321') ->
     astStatement '=', (astWrite key), op
 
   astBind = (keys) ->
-    astStatement 'cbind', (keys.map astRead).join ' '
+    _astStatement 'cbind', keys.map astRead
+
+  astConcat = (keys) ->
+    _astStatement 'rbind', keys.map astRead
 
   astColNames = (key, names) ->
     astStatement 'colnames=', (astRead key), (astRange 0, names.length - 1), (astStrings names)
 
   astBlock = (ops...) ->
-    "(, #{ops.join ' '})"
+    _astStatement ',', ops
 
   astNull = ->
     '"null"'
@@ -573,7 +579,8 @@ lib.connect = (host='http://localhost:54321') ->
       else
         [ frame ] = result
         sourceKey = frame.key.name
-        evaluate (astSlice sourceKey, begin, end - 1), (error, frame) ->
+        targetKey = do uuid
+        evaluate (astPut targetKey, astSlice sourceKey, begin, end - 1), (error, frame) ->
           if error
             go error
           else
@@ -610,6 +617,21 @@ lib.connect = (host='http://localhost:54321') ->
             go error
           else
             go null, frame
+
+
+  concatFrames = method (frames_, go) ->
+    fj.join frames_, (error, frames) ->
+      if error
+        go error
+      else
+        keys = frames.map (frame) -> frame.key.name
+        evaluate (astConcat keys), (error, frame) ->
+          if error
+            go error
+          else
+            go null, frame
+    
+
 
   # Files
   importFile: importFile
@@ -661,6 +683,7 @@ lib.connect = (host='http://localhost:54321') ->
   map: mapVectors
   filter: filterFrame
   slice: sliceFrame
+  concat: concatFrames
 
   # Types
   error: H2OError

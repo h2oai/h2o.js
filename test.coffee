@@ -67,7 +67,11 @@ test 'createColumn', (t) ->
 
   subset2 = h2o.slice subset, 20, 100
 
-  subset2 dump1
+  subset3 = h2o.slice subset, 300, 400
+
+  subset4 = h2o.concat [ subset2, subset3 ]
+
+  subset4 dump1
 
   t.end()
 
