@@ -509,6 +509,8 @@ lib.connect = (host='http://localhost:54321') ->
   astFilter = (key, op) ->
     astStatement '[', (astRead key), op, astNull()
 
+  astSlice = (key, begin, end) ->
+    astStatement '[', (astRead key), (astRange begin, end), astNull()
 
   selectVector = method (frame, label, go) ->
     fj.resolve frame, (error, frame) ->
@@ -562,6 +564,22 @@ lib.connect = (host='http://localhost:54321') ->
               go null, frame
         catch error
           go error
+
+  sliceFrame = method (frame_, begin, end, go) ->
+    # TODO validate begin/end
+    fj.join [ frame_ ], (error, result) ->
+      if error
+        go error
+      else
+        [ frame ] = result
+        sourceKey = frame.key.name
+        evaluate (astSlice sourceKey, begin, end - 1), (error, frame) ->
+          if error
+            go error
+          else
+            go null, frame
+
+
   _bindVectors = method (frameKey, vectors, go) ->
     fj.join vectors, (error, vectors) ->
       if error
@@ -642,6 +660,7 @@ lib.connect = (host='http://localhost:54321') ->
   select: selectVector
   map: mapVectors
   filter: filterFrame
+  slice: sliceFrame
 
   # Types
   error: H2OError
