@@ -15,6 +15,8 @@ enc = encodeURIComponent
 
 uuid = -> _uuid.v4().replace /\-/g, ''
 
+resolve = fj.resolve
+
 method = (f) ->
   (args...) ->
     if args.length is f.length
@@ -705,6 +707,7 @@ lib.connect = (host='http://localhost:54321') ->
   filter: filterFrame
   slice: sliceFrame
   concat: concatFrames
+  resolve: resolve
 
   # Types
   error: H2OError
