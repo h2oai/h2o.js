@@ -346,7 +346,7 @@ lib.connect = (host='http://localhost:54321') ->
 
     model go
 
-  predict = method (parameters, go) ->
+  createPrediction = method (parameters, go) ->
     #TODO allow user-override on destination_key
     #parameters = if destinationKey
     #  destination_key: destinationKey
@@ -658,7 +658,7 @@ lib.connect = (host='http://localhost:54321') ->
   removeModel: removeModel
 
   # Predictions
-  predict: predict
+  createPrediction: createPrediction
   getPredictions: getPredictions
   getPrediction: getPrediction
 
