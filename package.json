@@ -1,6 +1,6 @@
 {
   "name": "h2o.js",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "Node.js bindings to H2O",
   "main": "h2o.js",
   "scripts": {
