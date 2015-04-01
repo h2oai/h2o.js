@@ -439,16 +439,16 @@ lib.connect = (host='http://localhost:54321') ->
           go null, result
 
   getSchemas = method (go) ->
-    get '/1/Metadata/schemas.json', go
+    get '/1/Metadata/schemas.json', unwrap go, (result) -> result.schemas
 
   getSchema = method (name, go) ->
-    get "/1/Metadata/schemas.json/#{enc name}", go
+    get "/1/Metadata/schemas.json/#{enc name}", unwrap go, (result) -> _.head result.schemas
 
   getEndpoints = method (go) ->
-    get '/1/Metadata/endpoints.json', go
+    get '/1/Metadata/endpoints.json', unwrap go, (result) -> result.routes
 
   getEndpoint = method (index, go) ->
-    get "/1/Metadata/endpoints.json/#{index}", go
+    get "/1/Metadata/endpoints.json/#{index}", unwrap go, (result) -> _.head result.routes
 
   remove = method (key, go) ->
     del '/1/Remove.json', go
@@ -587,14 +587,14 @@ lib.connect = (host='http://localhost:54321') ->
           else
             go null, frame
 
-
-  _bindVectors = method (frameKey, vectors, go) ->
+  _bindVectors = method (targetKey, vectors, go) ->
+    # TODO use resolve()
     fj.join vectors, (error, vectors) ->
       if error
         go error
       else
         vectorKeys = vectors.map (vector) -> reflect vector, 'key'
-        evaluate (astPut frameKey, astBind vectorKeys), (error, frame) ->
+        evaluate (astPut targetKey, astBind vectorKeys), (error, frame) ->
           if error
             go error
           else
