@@ -644,10 +644,12 @@ Literal = 'Literal'
 
 
 
+#TODO need type attributes scalar -> scalar; vector -> scalar; etc.
 Funcs =
   toDate: 'as.Date'
   toString: 'as.character'
   toNumber: 'as.numeric'
+  random: 'h2o.runif'
 
 Asts =
   BinaryExpression: (operator, left, right) ->
@@ -777,6 +779,8 @@ SExpr = (context) ->
       "(#{op} #{sexpr left} #{sexpr right})"
 
     ConditionalExpression: null
+      # { test, consequent, alternate } = node
+
     NewExpression: null
 
     CallExpression: (node) ->
