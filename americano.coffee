@@ -729,7 +729,10 @@ SExpr = (context) ->
             # The unary + operator converts its operand to Number type.
             sexpr Func.toNumber argument
           when '-'
-            sexpr Ast.BinaryExpression '*', argument, Ast.Literal -1, '-1'
+            if argument.type is Literal and _.isNumber argument.value
+              sexpr Ast.Literal -1, '-1'
+            else
+              sexpr Ast.BinaryExpression '*', argument, Ast.Literal -1, '-1'
           else
             # '~', 'typeof', 'void', 'delete'
             throw new Error "Unsupported #{node.type} prefix operator [#{operator}]"
