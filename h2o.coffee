@@ -524,18 +524,29 @@ lib.connect = (host='http://localhost:54321') ->
       if error
         go error
       else
-        for vector, vectorIndex in frame.columns when vector.label is label
-          vectorKey = frame.vec_keys[vectorIndex].name
-          return go null, extend vector,
-            type: 'Vector'
-            key: vectorKey
-        go new Error "Vector [#{label}] not found in Frame [#{frame.key.name}]"
+        if _.isNumber label
+          vector = frame.columns[label]
+          if vector
+            vectorKey = frame.vec_keys[label].name
+            go null, extend vector,
+              type: 'Vector'
+              key: vectorKey
+          else
+            go new Error "Vector at index [#{label}] not found in Frame [#{frame.key.name}]"
+
+        else
+          for vector, vectorIndex in frame.columns when vector.label is label
+            vectorKey = frame.vec_keys[vectorIndex].name
+            return go null, extend vector,
+              type: 'Vector'
+              key: vectorKey
+          go new Error "Vector [#{label}] not found in Frame [#{frame.key.name}]"
 
   mapVectors = method (arg, func, go) ->
     vectors_ = if _.isArray arg then arg else [ arg ]
     fj.join vectors_, (error, vectors) ->
       if error
-        go error 
+        go error
       else
         vectorKeys = vectors.map (vector) -> reflect vector, 'key'
         try
@@ -549,6 +560,7 @@ lib.connect = (host='http://localhost:54321') ->
                 type: 'Vector'
                 key: targetKey
         catch error
+          console.log func.toString()
           go error
 
   filterFrame = method (frame_, arg, func, go) ->
@@ -574,6 +586,7 @@ lib.connect = (host='http://localhost:54321') ->
 
   sliceFrame = method (frame_, begin, end, go) ->
     # TODO validate begin/end
+    # TODO use resolve()
     fj.join [ frame_ ], (error, result) ->
       if error
         go error
@@ -619,7 +632,6 @@ lib.connect = (host='http://localhost:54321') ->
           else
             go null, frame
 
-
   concatFrames = method (frames_, go) ->
     fj.join frames_, (error, frames) ->
       if error
@@ -631,8 +643,6 @@ lib.connect = (host='http://localhost:54321') ->
             go error
           else
             go null, frame
-    
-
 
   # Files
   importFile: importFile
@@ -688,5 +698,8 @@ lib.connect = (host='http://localhost:54321') ->
 
   # Types
   error: H2OError
+
+  # Debugging
+  dump: dump
 
 module.exports = lib
