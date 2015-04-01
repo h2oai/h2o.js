@@ -44,14 +44,12 @@ test 'airlines example', (t) ->
     model: glmModel
     frame: testFrame
 
-  gbmPrediction (error, result) ->
+  h2o.resolve gbmPrediction, glmPrediction, (error, gbmPrediction, glmPrediction) ->
     if error
       t.end error
     else
-      h2o.dump result
-      glmPrediction (error, result) ->
-        if error
-          t.end error
-        else
-          h2o.dump result
-          t.end()
+      h2o.dump gbmPrediction
+      h2o.dump glmPrediction
+
+      h2o.removeAll -> t.end()
+
