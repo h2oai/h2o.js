@@ -398,33 +398,35 @@ lib.connect = (host='http://localhost:54321') ->
     formData = file: fs.createReadStream path
     upload "/3/PostFile.json?destination_key=#{enc key}", formData, go
 
+  #
+  # Diagnostics
+  #
+
   #TODO
-  requestCloud = method (go) ->
+  getClusterStatus = method (go) ->
     get '/1/Cloud.json', go
 
-  #TODO
-  requestTimeline = method (go) ->
+  getTimeline = method (go) ->
     get '/2/Timeline.json', go
 
-  #TODO
-  requestProfile = method (depth, go) ->
-    get "/2/Profiler.json?depth=#{depth}", go
-
-  #TODO
-  requestStackTrace = method (go) ->
+  getStackTrace = method (go) ->
     get '/2/JStack.json', go
 
-  #TODO
-  requestLogFile = method (nodeIndex, fileType, go) ->
+  getLogFile = method (nodeIndex, fileType, go) ->
     get "/3/Logs.json/nodes/#{nodeIndex}/files/#{fileType}", go
 
-  #TODO
-  requestNetworkTest = method (go) ->
+  runProfiler = method (depth, go) ->
+    get "/2/Profiler.json?depth=#{depth}", go
+
+  runNetworkTest = method (go) ->
     get '/2/NetworkTest.json', go
 
-  #TODO
-  requestAbout = method (go) ->
+  about = method (go) ->
     get '/3/About.json', go
+
+  #
+  # Private
+  #
 
   evaluate = method (ast, go) ->
     console.log ast
@@ -688,10 +690,19 @@ lib.connect = (host='http://localhost:54321') ->
   removeAll: removeAll
   shutdown: shutdown
 
+  # Diagnostics
+  getClusterStatus: getClusterStatus
+  getTimeline: getTimeline
+  getStackTrace: getStackTrace
+  getLogFile: getLogFile
+  runProfiler: runProfiler
+  runNetworkTest: runNetworkTest
+  about: about
+
   # Local
-  bind: bindVectors
-  select: selectVector
-  map: mapVectors
+  bind: bindVectors # TODO createFrame?
+  select: selectVector # TODO getColumn?
+  map: mapVectors # TODO mapColumns?
   filter: filterFrame
   slice: sliceFrame
   concat: concatFrames
