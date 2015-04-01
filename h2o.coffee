@@ -339,7 +339,7 @@ lib.connect = (host='http://localhost:54321') ->
       buildModel algo, parameters
 
     job = fj.lift build, (build) ->
-      waitForJob build.jobs[0].key.name
+      waitForJob build.job.key.name
 
     model = fj.lift job, (job) ->
       getModel job.dest.name
@@ -402,7 +402,6 @@ lib.connect = (host='http://localhost:54321') ->
   # Diagnostics
   #
 
-  #TODO
   getClusterStatus = method (go) ->
     get '/1/Cloud.json', go
 

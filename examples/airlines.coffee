@@ -1,53 +1,57 @@
-fs = require 'fs'
 path = require 'path'
+h2ojs = require './../h2o.js'
+test = require 'tape'
 
-dump = (a) -> console.log JSON.stringify a, null, 2
+h2o = h2ojs.connect()
 
-h2o = (require '../h2o.js').connect()
+test 'airlines example', (t) ->
+  dataFrame = h2o.importFrame
+    path: path.join __dirname, 'data', 'AirlinesTrain.csv.zip'
 
-dataFrame = h2o.importFrame
-  path: path.join __dirname, 'data', 'AirlinesTrain.csv.zip'
+  #TODO training/validation split
+  trainingFrame = dataFrame
 
-#TODO training/validation split
-trainingFrame = dataFrame
+  ignoredColumns = ['IsDepDelayed_REC', 'fYear', 'DepTime', 'ArrTime']
 
-ignoredColumns = ['IsDepDelayed_REC', 'fYear', 'DepTime', 'ArrTime']
+  responseColumn = 'IsDepDelayed'
 
-responseColumn = 'IsDepDelayed'
+  gbmModel = h2o.createModel 'gbm',
+    training_frame: trainingFrame
+    # TODO
+    # validation_frame: validationFrame
+    ignored_columns: ignoredColumns
+    response_column: responseColumn
+    ntrees: 100
+    max_depth: 3
+    learn_rate: 0.01
+    loss: 'bernoulli'
 
-gbmModel = h2o.createModel 'gbm',
-  training_frame: trainingFrame
-  # TODO
-  # validation_frame: validationFrame
-  ignored_columns: ignoredColumns
-  response_column: responseColumn
-  ntrees: 100
-  max_depth: 3
-  learn_rate: 0.01
-  loss: 'bernoulli'
+  glmModel = h2o.createModel 'glm',
+    training_frame: trainingFrame
+    # TODO
+    # validation_frame: validationFrame
+    ignored_columns: ignoredColumns
+    response_column: responseColumn
 
-glmModel = h2o.createModel 'glm',
-  training_frame: trainingFrame
-  # TODO
-  # validation_frame: validationFrame
-  ignored_columns: ignoredColumns
-  response_column: responseColumn
+  testFrame = h2o.importFrame
+    path: path.join __dirname, 'data', 'AirlinesTest.csv.zip'
 
-testFrame = h2o.importFrame
-  path: path.join __dirname, 'data', 'AirlinesTest.csv.zip'
+  gbmPrediction = h2o.createPrediction
+    model: gbmModel
+    frame: testFrame
 
-gbmPrediction = h2o.predict
-  model: gbmModel
-  frame: testFrame
+  glmPrediction = h2o.createPrediction
+    model: glmModel
+    frame: testFrame
 
-glmPrediction = h2o.predict
-  model: glmModel
-  frame: testFrame
-
-gbmPrediction (error, result) ->
-  dump error
-  dump result
-
-glmPrediction (error, result) ->
-  dump error
-  dump result
+  gbmPrediction (error, result) ->
+    if error
+      t.end error
+    else
+      h2o.dump result
+      glmPrediction (error, result) ->
+        if error
+          t.end error
+        else
+          h2o.dump result
+          t.end()
