@@ -4,10 +4,9 @@
   "description": "Node.js bindings to H2O",
   "main": "h2o.js",
   "scripts": {
-    "start": "coffee -c *.coffee",
-    "build-examples": "coffee -c examples/*.coffee",
+    "start": "coffee --compile .",
     "test": "npm start && node test.js",
-    "coverage": "npm start && istanbul cover -x americano.test.js -x h2o.test.js test.js"
+    "coverage": "npm start && istanbul cover -x **/examples/** test.js"
   },
   "repository": {
     "type": "git",

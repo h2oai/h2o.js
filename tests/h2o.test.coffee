@@ -1,14 +1,15 @@
 path = require 'path'
 test = require 'tape'
-libh2o = require './h2o.js'
-transpiler = require './americano.js'
+_ = require 'lodash'
+libh2o = require '../h2o.js'
+transpiler = require '../americano.js'
 transpilerTestCases = require './americano.test.js'
 
 h2o = libh2o.connect() 
 
 dump = (a) -> console.log JSON.stringify a, null, 2
 
-test.skip 'transpiler.map', (t) ->
+test 'transpiler.map', (t) ->
   for [ message, expected, symbols, func ] in transpilerTestCases.map
     if expected is null
       t.throws (-> transpiler.map(symbols, func)), undefined, message
@@ -46,9 +47,83 @@ dump1 = (error, data) ->
     dump error
   dump data
 
-test 'createColumn', (t) ->
-  airlines = h2o.importFrame
-    path: path.join __dirname, 'examples', 'data', 'AirlinesTrain.csv.zip'
+pathTo = (dir, file) -> path.join __dirname, 'examples', 'data', dir, file
+flights_csv = pathTo 'nyc2014', 'flights14.csv'
+delays_csv = pathTo 'nyc2014', 'delays14.csv'
+weather_csv = pathTo 'nyc2014', 'weather_delays14.csv'
+
+ok = (t, f) ->
+  (error, result) ->
+    t.equal error, null
+    f result if f
+
+fail = (t, f) ->
+  (error, result) ->
+    t.notEqual error, null
+    f error if f
+
+typeOf = (obj) -> obj.__meta.schema_type
+
+keyOf = (obj) -> obj.key.name
+
+end = (t) -> h2o.removeAll -> t.end()
+
+test.skip 'importFrame(), getFrames()', (t) ->
+  flights = h2o.importFrame path: flights_csv
+  flights ok t, (flights) ->
+    t.equal (typeOf flights), 'Frame'
+    frames = h2o.getFrames ok t, (frames) ->
+      t.assert _.isArray frames
+      t.equal frames.length, 1
+      frame = _.head frames
+      t.equal (typeOf frame), 'Frame'
+      t.equal (keyOf frame), keyOf flights
+      end t
+
+test.skip 'importFrame(), getFrame(key)', (t) ->
+  flights = h2o.importFrame path: flights_csv
+  flights ok t, (flights) ->
+    t.equal (typeOf flights), 'Frame'
+    frame = h2o.getFrame keyOf flights
+    frame ok t, (frame) ->
+      t.equal (typeOf frame), 'Frame'
+      t.equal (keyOf frame), keyOf flights
+      end t
+
+test 'getFrame(non-string)', (t) ->
+  t.plan 2
+  h2o.getFrame {}, fail t
+  h2o.getFrame '', fail t
+  end t
+
+test.skip 'importFrame, getFrames, getFrame, getColumnSummary, getJobs, getJobs, removeFrame', (t) ->
+  flights = h2o.importFrame path: flights_csv
+  frames = h2o.getFrames()
+  flights1 = h2o.getFrame 'flights14.hex'
+  flights2 = h2o.getFrame flights
+  dest1 = h2o.getColumnSummary flights, 'dest'
+  dest2 = h2o.getColumnSummary flights1, 'dest'
+  dest3 = h2o.getColumnSummary flights3, 'dest'
+  dest1 ok t, (col1) ->
+    t.equal (typeOf col1), 'Vec'
+    dest2 ok t, (col2) ->
+      t.equal (typeOf col2), 'Vec'
+      dest3 ok t, (col3) ->
+        t.equal (typeOf col3), 'Vec'
+        h2o.getJobs ok t, (jobs) ->
+          job0 = _.head jobs
+          t.equal (typeOf job0), 'Job'
+          job = h2o.getJob job0Key = keyOf job0
+          job ok t, (job) ->
+            t.equal (typeOf job), 'Job'
+            t.equal (keyOf job), job0Key
+
+            removal = removeFrame flights
+            removal ok t, ->
+              end t
+
+test.skip 'createColumn', (t) ->
+  airlines = h2o.importFrame path: 'AirlinesTrain.csv.zip'
 
   departureTime = h2o.select airlines, 'DepTime'
   departureTime1 = h2o.map departureTime, (a) -> a + 1
