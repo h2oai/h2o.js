@@ -178,6 +178,8 @@ lib.connect = (host='http://localhost:54321') ->
     get '/3/Frames.json', unwrap go, (result) -> extendFrames result.frames
 
   getFrame = method (key, go) ->
+    return go new Error 'Parameter [key]: expected string' unless _.isString key
+    return go new Error 'Parameter [key]: expected non-empty string' if key is ''
     get "/3/Frames.json/#{enc key}", unwrap go, (result) -> _.head extendFrames result.frames
 
   removeFrame = method (key, go) ->
@@ -185,7 +187,6 @@ lib.connect = (host='http://localhost:54321') ->
 
   getRDDs = method (go) ->
     get '/3/RDDs.json', unwrap go, (result) -> result.rdds
-
 
   getColumnSummary = method (key, column, go) ->
     get "/3/Frames.json/#{enc key}/columns/#{enc column}/summary", unwrap go, (result) ->
