@@ -69,7 +69,7 @@ reflect = (obj, attribute) ->
 typeOf = (obj) -> reflect obj, 'type'
 
 extendFrame = (frame) ->
-  extend frame, type: 'Frame'
+  extend frame, type: 'Frame', key: frame.key.name
 
 extractFrameKey = (a) ->
   if _.isString a
@@ -583,7 +583,7 @@ lib.connect = (host='http://localhost:54321') ->
             if error
               go error
             else
-              go null, frame
+              go null, extendFrame frame
         catch error
           go error
 
@@ -601,7 +601,7 @@ lib.connect = (host='http://localhost:54321') ->
           if error
             go error
           else
-            go null, frame
+            go null, extendFrame frame
 
   _bindVectors = method (targetKey, vectors, go) ->
     # TODO use resolve()
@@ -614,7 +614,7 @@ lib.connect = (host='http://localhost:54321') ->
           if error
             go error
           else
-            go null, frame
+            go null, extendFrame frame
 
   bindVectors = method (vectors, go) ->
     _bindVectors uuid(), vectors, go
@@ -633,7 +633,7 @@ lib.connect = (host='http://localhost:54321') ->
           if error
             go error
           else
-            go null, frame
+            go null, extendFrame frame
 
   concatFrames = method (frames_, go) ->
     fj.join frames_, (error, frames) ->
@@ -645,7 +645,7 @@ lib.connect = (host='http://localhost:54321') ->
           if error
             go error
           else
-            go null, frame
+            go null, extendFrame frame
 
   # Files
   importFile: importFile
