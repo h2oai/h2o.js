@@ -57,47 +57,25 @@ unwrap = (go, transform) ->
     else
       go null, transform result
 
-META = '__h2o_js__'
-extend = (obj, attributes) ->
-  meta = obj[META] ?= {}
-  for attribute, value of attributes
-    meta[attribute] = value
-  obj
-
-reflect = (obj, attribute) ->
-  if meta = obj?[META] then meta[attribute] else meta
-
-typeOf = (obj) -> reflect obj, 'type'
-
-extendFrame = (frame) ->
-  extend frame, type: 'Frame', key: frame.key.name
-
-extractFrameKey = (a) ->
+keyOf = (a) ->
   if _.isString a
     a
-  else if 'Frame' is typeOf a
+  else if a.__meta? and a.key?
     a.key.name
   else
-    undefined
+    throw new Error "Could not determine H2O Key for parameter [#{a}]"
 
-extendModel = (model) ->
-  extend model, type: 'Model'
+patchFrame = (frame) ->
+  # TODO remove hack
+  # Tack on vec_key to each column.
+  for column, i in frame.columns
+    column.key = frame.vec_keys[i]
+  frame
 
-extractModelKey = (a) ->
-  if _.isString a
-    a
-  else if 'Model' is typeOf a
-    a.key.name
-  else
-    undefined
-
-extendFrames = (frames) -> 
+patchFrames = (frames) -> 
   for frame in frames
-    extendFrame frame
-
-extendModels = (models) ->
-  for model in models
-    extendModel model
+    patchFrame frame
+  frames
 
 class H2OError extends Error
   constructor: (@message, cause) ->
@@ -178,12 +156,12 @@ lib.connect = (host='http://localhost:54321') ->
     post '/2/SplitFrame.json', (encodeObject parameters), go
 
   getFrames = method (go) ->
-    get '/3/Frames.json', unwrap go, (result) -> extendFrames result.frames
+    get '/3/Frames.json', unwrap go, (result) -> patchFrames result.frames
 
   getFrame = method (key, go) ->
     return go new Error 'Parameter [key]: expected string' unless _.isString key
     return go new Error 'Parameter [key]: expected non-empty string' if key is ''
-    get "/3/Frames.json/#{enc key}", unwrap go, (result) -> _.head extendFrames result.frames
+    get "/3/Frames.json/#{enc key}", unwrap go, (result) -> _.head patchFrames result.frames
 
   removeFrame = method (key, go) ->
     del "/3/Frames.json/#{enc key}", go
@@ -191,8 +169,8 @@ lib.connect = (host='http://localhost:54321') ->
   getRDDs = method (go) ->
     get '/3/RDDs.json', unwrap go, (result) -> result.rdds
 
-  getColumnSummary = method (key, column, go) ->
-    get "/3/Frames.json/#{enc key}/columns/#{enc column}/summary", unwrap go, (result) ->
+  getSummary = method (key, columnLabel, go) ->
+    get "/3/Frames.json/#{enc key}/columns/#{enc columnLabel}/summary", unwrap go, (result) ->
       _.head result.frames
 
   getJobs = method (go) ->
@@ -275,7 +253,7 @@ lib.connect = (host='http://localhost:54321') ->
     frame go
 
   #TODO obsolete
-  patchUpModels = method (models) ->
+  patchModels = method (models) ->
     for model in models
       for parameter in model.parameters
         switch parameter.type
@@ -288,11 +266,13 @@ lib.connect = (host='http://localhost:54321') ->
 
   getModels = method (go) ->
     get '/3/Models.json', unwrap go, (result) ->
-      patchUpModels extendModels result.models
+      #XXX
+      patchModels result.models
 
   getModel = method (key, go) ->
     get "/3/Models.json/#{enc key}", unwrap go, (result) ->
-      _.head patchUpModels extendModels result.models
+      #XXX
+      _.head patchModels result.models
 
   removeModel = method (key, go) ->
     del "/3/Models.json/#{enc key}", go
@@ -332,8 +312,8 @@ lib.connect = (host='http://localhost:54321') ->
   createModel = method (algo, parameters, go) ->
     resolvedParameters = resolveParameters parameters
     build = fj.lift resolvedParameters, (parameters) ->
-      trainingFrameKey = extractFrameKey parameters.training_frame
-      validationFrameKey = extractFrameKey parameters.validation_frame
+      trainingFrameKey = keyOf parameters.training_frame
+      validationFrameKey = keyOf parameters.validation_frame
       delete parameters.training_frame
       delete parameters.validation_frame
       parameters.training_frame = trainingFrameKey if trainingFrameKey
@@ -358,8 +338,8 @@ lib.connect = (host='http://localhost:54321') ->
       if error
         go error
       else
-        modelKey = extractModelKey parameters.model
-        frameKey = extractFrameKey parameters.frame
+        modelKey = keyOf parameters.model
+        frameKey = keyOf parameters.frame
         delete parameters.model
         delete parameters.frame
 
@@ -530,20 +510,16 @@ lib.connect = (host='http://localhost:54321') ->
         if _.isNumber label
           vector = frame.columns[label]
           if vector
-            vectorKey = frame.vec_keys[label].name
-            go null, extend vector,
-              type: 'Vector'
-              key: vectorKey
+            go null, vector
           else
             go new Error "Vector at index [#{label}] not found in Frame [#{frame.key.name}]"
 
         else
-          for vector, vectorIndex in frame.columns when vector.label is label
-            vectorKey = frame.vec_keys[vectorIndex].name
-            return go null, extend vector,
-              type: 'Vector'
-              key: vectorKey
-          go new Error "Vector [#{label}] not found in Frame [#{frame.key.name}]"
+          vector = _.find frame.columns, (vector) -> vector.label is label
+          if vector
+            go null, vector
+          else
+            go new Error "Vector [#{label}] not found in Frame [#{frame.key.name}]"
 
   mapVectors = method (arg, func, go) ->
     vectors_ = if _.isArray arg then arg else [ arg ]
@@ -551,7 +527,7 @@ lib.connect = (host='http://localhost:54321') ->
       if error
         go error
       else
-        vectorKeys = vectors.map (vector) -> reflect vector, 'key'
+        vectorKeys = vectors.map keyOf
         try
           op = transpiler.map vectorKeys, func
           targetKey = do uuid
@@ -559,9 +535,7 @@ lib.connect = (host='http://localhost:54321') ->
             if error
               go error
             else
-              go null, extend vector,
-                type: 'Vector'
-                key: targetKey
+              go null, vector
         catch error
           console.log func.toString()
           go error
@@ -575,7 +549,7 @@ lib.connect = (host='http://localhost:54321') ->
       else
         [ frame, vectors...] = deps
         sourceKey = frame.key.name
-        vectorKeys = vectors.map (vector) -> reflect vector, 'key'
+        vectorKeys = vectors.map keyOf
         try
           op = transpiler.map vectorKeys, func
           targetKey = do uuid
@@ -583,7 +557,7 @@ lib.connect = (host='http://localhost:54321') ->
             if error
               go error
             else
-              go null, extendFrame frame
+              go null, frame
         catch error
           go error
 
@@ -601,7 +575,7 @@ lib.connect = (host='http://localhost:54321') ->
           if error
             go error
           else
-            go null, extendFrame frame
+            go null, frame
 
   _bindVectors = method (targetKey, vectors, go) ->
     # TODO use resolve()
@@ -609,12 +583,12 @@ lib.connect = (host='http://localhost:54321') ->
       if error
         go error
       else
-        vectorKeys = vectors.map (vector) -> reflect vector, 'key'
+        vectorKeys = vectors.map keyOf
         evaluate (astPut targetKey, astBind vectorKeys), (error, frame) ->
           if error
             go error
           else
-            go null, extendFrame frame
+            go null, frame
 
   bindVectors = method (vectors, go) ->
     _bindVectors uuid(), vectors, go
@@ -633,7 +607,7 @@ lib.connect = (host='http://localhost:54321') ->
           if error
             go error
           else
-            go null, extendFrame frame
+            go null, frame
 
   concatFrames = method (frames_, go) ->
     fj.join frames_, (error, frames) ->
@@ -645,7 +619,7 @@ lib.connect = (host='http://localhost:54321') ->
           if error
             go error
           else
-            go null, extendFrame frame
+            go null, frame
 
   # Files
   importFile: importFile
@@ -662,7 +636,7 @@ lib.connect = (host='http://localhost:54321') ->
   removeFrame: removeFrame
 
   # Summary
-  getColumnSummary: getColumnSummary
+  getSummary: getSummary
 
   # Models
   createModel: createModel
