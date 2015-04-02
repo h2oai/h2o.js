@@ -157,7 +157,7 @@ flatten = (source, maxDepth, depth, parentKey, target) ->
       switch text
         when '[object String]'
           target[path] = unwrap value
-        when '[object Number]'
+        when '[object Number]', '[object Boolean]'
           target[path] = '' + value
         when '[object Array]'
           target[path] = unwrap JSON.stringify value
@@ -183,7 +183,7 @@ unfurl = (source, maxIndent, indent, parentKey, rows) ->
       switch text
         when '[object String]'
           rows.push [ label, unwrap value ]
-        when '[object Number]'
+        when '[object Number]', '[object Boolean]'
           rows.push [ label, '' + value ]
         when '[object Array]'
           rows.push [ label, unwrap JSON.stringify value ]

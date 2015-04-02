@@ -4,7 +4,7 @@ _ = require 'lodash'
 
 h2o = h2ojs.connect()
 
-test.only 'getSchemas', (t) ->
+test 'getSchemas', (t) ->
   h2o.getSchemas (error, schemas) ->
     if error
       t.end error

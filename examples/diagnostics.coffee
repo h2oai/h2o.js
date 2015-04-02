@@ -10,6 +10,7 @@ test 'getClusterStatus', (t) ->
     else
       console.log 'Cluster information:'
       h2o.print cluster
+      h2o.print cluster.nodes[0]
       t.end()
 
 test 'getTimeline', (t) ->
@@ -63,6 +64,6 @@ test 'about', (t) ->
       t.end error
     else
       console.log 'About H2O:'
-      h2o.print about
+      h2o.print about.entries
       t.end()
 
