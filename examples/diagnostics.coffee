@@ -9,7 +9,7 @@ test 'getClusterStatus', (t) ->
       t.end error
     else
       console.log 'Cluster information:'
-      h2o.dump cluster
+      h2o.print cluster
       t.end()
 
 test 'getTimeline', (t) ->
@@ -18,7 +18,7 @@ test 'getTimeline', (t) ->
       t.end error
     else
       console.log 'Timeline information:'
-      h2o.dump timeline
+      h2o.print timeline
       t.end()
 
 test 'getStackTrace', (t) ->
@@ -27,7 +27,7 @@ test 'getStackTrace', (t) ->
       t.end error
     else
       console.log 'Current stack trace:'
-      h2o.dump stackTrace
+      h2o.print stackTrace
       t.end()
 
 test 'getLogFile', (t) ->
@@ -36,7 +36,7 @@ test 'getLogFile', (t) ->
       t.end error
     else
       console.log 'Log file:'
-      h2o.dump logFile
+      h2o.print logFile
       t.end()
 
 test 'runProfiler', (t) ->
@@ -45,7 +45,7 @@ test 'runProfiler', (t) ->
       t.end error
     else
       console.log 'Profiler output:'
-      h2o.dump result
+      h2o.print result
       t.end()
 
 test 'runNetworkTest', (t) ->
@@ -54,7 +54,7 @@ test 'runNetworkTest', (t) ->
       t.end error
     else
       console.log 'Network test output:'
-      h2o.dump result
+      h2o.print result
       t.end()
 
 test 'about', (t) ->
@@ -63,6 +63,6 @@ test 'about', (t) ->
       t.end error
     else
       console.log 'About H2O:'
-      h2o.dump about
+      h2o.print about
       t.end()
 

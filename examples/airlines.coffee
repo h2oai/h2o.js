@@ -73,8 +73,8 @@ test 'airlines example', (t) ->
     if error
       t.end error
     else
-      h2o.dump gbmPrediction
-      h2o.dump glmPrediction
+      h2o.print gbmPrediction
+      h2o.print glmPrediction
       
       h2o.removeAll -> t.end()
 

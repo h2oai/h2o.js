@@ -4,6 +4,7 @@ _ = require 'lodash'
 _request = require 'request'
 _uuid = require 'node-uuid'
 transpiler = require './americano.js'
+print = require './print.js'
 
 lib = {}
 
@@ -251,7 +252,6 @@ lib.connect = (host='http://localhost:54321') ->
         source_keys: result.keys
 
     parseResult = fj.lift setupResult, (result) ->
-      dump result
       # TODO override with user-parameters
       parseFiles
         destination_key: result.destination_key
@@ -714,5 +714,6 @@ lib.connect = (host='http://localhost:54321') ->
 
   # Debugging
   dump: dump
+  print: print
 
 module.exports = lib
