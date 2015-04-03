@@ -129,6 +129,22 @@ createTable = (header, rows, opts) ->
 
   createPrintableTable (normalize columnLabels), rows, widths
 
+createTableFromColumns = (_header, columns, opts) ->
+  header = ('' + value for value in _header)
+
+  widths = (heading.length for heading in header)
+
+  rows = for i in [0 ... columns[0].length]
+    new Array columns.length
+
+  for row, i in rows
+    for column, j in columns
+      value = column[i]
+      row[j] = cell = if value? then  '' + value else '-'
+      widths[j] = len if widths[j] < (len = cell.length)
+
+  createPrintableTable [ header ], rows, widths
+
 tabulate = (objs, opts) ->
   dict = {}
   headers = []
@@ -201,12 +217,14 @@ unfurl = (source, maxIndent, indent, parentKey, rows) ->
       rows.push [ label, '-' ]
   return
 
-print = (arg, opts={}) ->
+makeDefaults = (opts) ->
   _.defaults opts,
     maxWidth: 80
     maxDepth: 10
     widths: {}
 
+print = (arg, opts={}) ->
+  makeDefaults opts
   if _.isArray arg
     targets = for source in arg
       flatten source, opts.maxDepth, 0, null, target = {}
@@ -228,5 +246,10 @@ print = (arg, opts={}) ->
 
   else
     console.log arg
+
+print.columns = (headers, columns, opts={}) ->
+  makeDefaults opts
+  table = createTableFromColumns headers, columns, opts
+  console.log wrapAndPrintTable table, opts
 
 module.exports = print
