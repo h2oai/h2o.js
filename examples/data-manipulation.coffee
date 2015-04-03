@@ -50,10 +50,10 @@ test 'sequence(11, 12, 0.1)', (t) ->
       h2o.print.columns result.col_names, result.head
       h2o.removeAll -> t.end()
 
-test 'repeat(vector, 10)', (t) ->
-  vec = h2o.sequence 10
-  repetition = h2o.repeat vec, 10
-  repetition (error, result) ->
+test 'replicate(vector, 15)', (t) ->
+  vec = h2o.sequence 5
+  replication = h2o.replicate vec, 15
+  replication (error, result) ->
     if error
       t.end error
     else

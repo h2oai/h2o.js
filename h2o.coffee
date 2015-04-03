@@ -628,19 +628,21 @@ lib.connect = (host='http://localhost:54321') ->
             go null, frame
 
   _repeat = method (frame_, times, go) ->
+
+  _replicate = method (frame_, length, go) ->
     join frame_, go, (frame) ->
       op = astStatement(
         'rep_len'
         astRead keyOf frame
-        astNumber times
+        astNumber length
       )
       evaluate (astPut uuid(), op), go
 
-  repeat = dispatch
-    'Future, Finite': _repeat
-    'String, Finite': _repeat
-    'Future, Finite, Function': _repeat
-    'String, Finite, Function': _repeat
+  replicate = dispatch
+    'Future, Finite': _replicate
+    'String, Finite': _replicate
+    'Future, Finite, Function': _replicate
+    'String, Finite, Function': _replicate
 
   _seq = method (start, end, step, go) ->
     op = astStatement(
@@ -727,7 +729,7 @@ lib.connect = (host='http://localhost:54321') ->
   concat: concatFrames
   resolve: resolve
   sequence: sequence
-  repeat: repeat
+  replicate: replicate
 
   # Types
   error: H2OError
