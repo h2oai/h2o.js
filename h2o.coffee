@@ -8,6 +8,7 @@ print = require './print.js'
 dispatch = require './dispatch.js'
 
 dispatch.register 'Future', (a) -> fj.isFuture a
+
 lib = {}
 
 dump = (a) -> console.log JSON.stringify a, null, 2
@@ -482,8 +483,8 @@ lib.connect = (host='http://localhost:54321') ->
   astList = (list) ->
     "{#{ list.join ';' }}"
 
-  astRange = (begin, end) ->
-    astList [astStatement ':', (astNumber begin), (astNumber end)]
+  astSpan = (begin, end) ->
+    astStatement ':', (astNumber begin), (astNumber end)
 
   astStrings = (strings) ->
     astList (astString string for string in strings)
@@ -501,7 +502,7 @@ lib.connect = (host='http://localhost:54321') ->
     _astStatement 'rbind', keys.map astRead
 
   astColNames = (key, names) ->
-    astStatement 'colnames=', (astRead key), (astRange 0, names.length - 1), (astStrings names)
+    astStatement 'colnames=', (astRead key), (astList [astSpan 0, names.length - 1]), (astStrings names)
 
   astBlock = (ops...) ->
     _astStatement ',', ops
@@ -513,7 +514,8 @@ lib.connect = (host='http://localhost:54321') ->
     astStatement '[', (astRead key), op, astNull()
 
   astSlice = (key, begin, end) ->
-    astStatement '[', (astRead key), (astRange begin, end), astNull()
+    #TODO end - 1?
+    astStatement '[', (astRead key), (astList [ astSpan begin, end ]), astNull()
 
   selectVector = method (frame, label, go) ->
     resolve frame, (error, frame) ->
@@ -628,7 +630,22 @@ lib.connect = (host='http://localhost:54321') ->
           else
             go null, frame
 
-  _repeat = method (frame_, times, go) ->
+
+  _combine = method (elements, go) ->
+    asts = for element in elements
+      if _.isFinite element
+        astNumber element
+      else if _.isArray element
+        [ begin, end ] = element
+        astSpan begin, end
+      else
+        throw new Error "Cannot combine element [#{element}]"
+
+    evaluate (astPut uuid(), astStatement 'c', astList asts), go
+
+  combine = dispatch
+    'Array': _combine
+    'Array, Function': _combine
 
   _replicate = method (frame_, length, go) ->
     join frame_, go, (frame) ->
@@ -731,6 +748,7 @@ lib.connect = (host='http://localhost:54321') ->
   resolve: resolve
   sequence: sequence
   replicate: replicate
+  combine: combine
 
   # Types
   error: H2OError
@@ -738,5 +756,6 @@ lib.connect = (host='http://localhost:54321') ->
   # Debugging
   dump: dump
   print: print
+  lift: fj.lift
 
 module.exports = lib
