@@ -7,6 +7,7 @@ transpiler = require './americano.js'
 print = require './print.js'
 dispatch = require './dispatch.js'
 
+dispatch.register 'Future', (a) -> fj.isFuture a
 lib = {}
 
 dump = (a) -> console.log JSON.stringify a, null, 2

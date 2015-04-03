@@ -3,6 +3,7 @@ _ = require 'lodash'
 _userTypes = []
 
 typeOf = (a) ->
+
   return 'Undefined' if _.isUndefined a
   return 'Null' if _.isNull a
   return 'Finite' if _.isFinite a
@@ -12,13 +13,13 @@ typeOf = (a) ->
   return 'Array' if (_.isArray a) or (_.isArguments a)
   return 'Date' if _.isDate a
   return 'Error' if _.isError a
-  return 'Function' if _.isFunction a 
   return 'RegExp' if _.isRegExp a
 
-  if _.isObject a
-    for type in _userTypes when type.check a
-      return type.name
-    return 'Object'
+  for type in _userTypes when type.check a
+    return type.name
+    
+  return 'Function' if _.isFunction a 
+  return 'Object' if _.isObject a
 
   return 'Unknown'
 
