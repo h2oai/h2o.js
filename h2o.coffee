@@ -5,6 +5,7 @@ _request = require 'request'
 _uuid = require 'node-uuid'
 transpiler = require './americano.js'
 print = require './print.js'
+dispatch = require './dispatch.js'
 
 lib = {}
 
@@ -17,6 +18,20 @@ enc = encodeURIComponent
 uuid = -> _uuid.v4().replace /\-/g, ''
 
 resolve = fj.resolve
+
+join = (args..., fail, pass) ->
+  fj.join args, (error, args) ->
+    if error
+      fail error
+    else
+      pass.apply null, args
+
+unwrap = (go, transform) ->
+  (error, result) ->
+    if error
+      go error
+    else
+      go null, transform result
 
 method = (f) ->
   (args...) ->
@@ -50,20 +65,13 @@ encodeObject = (source) ->
     target[key] = if _.isArray value then encodeArray value else value
   target
 
-unwrap = (go, transform) ->
-  (error, result) ->
-    if error
-      go error
-    else
-      go null, transform result
-
 keyOf = (a) ->
   if _.isString a
     a
   else if a.__meta? and a.key?
     a.key.name
   else
-    throw new Error "Could not determine H2O Key for parameter [#{a}]"
+    undefined
 
 patchFrame = (frame) ->
   # TODO remove hack
