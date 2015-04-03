@@ -61,6 +61,15 @@ test 'replicate(vector, 15)', (t) ->
       h2o.print.columns result.col_names, result.head
       h2o.removeAll -> t.end()
 
+test 'combine([4, 2, 42, [13, 17]])', (t) ->
+  vec = h2o.combine [4, 2, 42, [13, 17]]
+  vec (error, result) ->
+    if error
+      t.end error
+    else
+      h2o.print result
+      h2o.print.columns result.col_names, result.head
+      h2o.removeAll -> t.end()
 
 test 'Load frames in parallel', (t) ->
   flights = h2o.importFrame path: flights14_zip
