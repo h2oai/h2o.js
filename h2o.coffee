@@ -627,6 +627,29 @@ lib.connect = (host='http://localhost:54321') ->
           else
             go null, frame
 
+  _seq = method (start, end, step, go) ->
+    op = astStatement(
+      'seq'
+      astNumber start
+      astNumber end
+      astNumber step
+    )
+    evaluate (astPut uuid(), op), go
+
+  _seqLen = method (end, go) ->
+    op = astStatement(
+      'seq_len'
+      astNumber end
+    )
+    evaluate (astPut uuid(), op), go
+
+  sequence = dispatch
+    'Finite': _seqLen
+    'Finite, Finite': (start, end) -> _seq start, end, 1
+    'Finite, Finite, Finite': _seq
+    'Finite, Function': _seqLen
+    'Finite, Finite, Function': (start, end, go) -> _seq start, end, 1, go
+    'Finite, Finite, Finite, Function': _seq
   # Files
   importFile: importFile
   importFiles: importFiles
@@ -688,6 +711,7 @@ lib.connect = (host='http://localhost:54321') ->
   slice: sliceFrame
   concat: concatFrames
   resolve: resolve
+  sequence: sequence
 
   # Types
   error: H2OError
