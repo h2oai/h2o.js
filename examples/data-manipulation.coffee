@@ -41,7 +41,7 @@ test 'sequence(11, 20)', (t) ->
       h2o.print.columns result.col_names, result.head
       h2o.removeAll -> t.end()
 
-test.only 'sequence(11, 12, 0.1)', (t) ->
+test 'sequence(11, 12, 0.1)', (t) ->
   vec = h2o.sequence 11, 12, 0.1
   vec (error, result) ->
     if error
@@ -49,6 +49,18 @@ test.only 'sequence(11, 12, 0.1)', (t) ->
     else
       h2o.print.columns result.col_names, result.head
       h2o.removeAll -> t.end()
+
+test 'repeat(vector, 10)', (t) ->
+  vec = h2o.sequence 10
+  repetition = h2o.repeat vec, 10
+  repetition (error, result) ->
+    if error
+      t.end error
+    else
+      h2o.print result
+      h2o.print.columns result.col_names, result.head
+      h2o.removeAll -> t.end()
+
 
 test 'Load frames in parallel', (t) ->
   flights = h2o.importFrame path: flights14_zip
