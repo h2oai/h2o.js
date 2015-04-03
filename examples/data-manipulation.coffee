@@ -23,7 +23,34 @@ flights14_zip = locate 'delays14.csv.zip'
 delays14_zip = locate 'flights14.csv.zip'
 weather14_zip = locate 'weather_delays14.csv.zip'
 
-test.only 'Load frames in parallel', (t) ->
+test 'sequence(10)', (t) ->
+  vec = h2o.sequence 10
+  vec (error, result) ->
+    if error
+      t.end error
+    else
+      h2o.print.columns result.col_names, result.head
+      h2o.removeAll -> t.end()
+
+test 'sequence(11, 20)', (t) ->
+  vec = h2o.sequence 11, 20
+  vec (error, result) ->
+    if error
+      t.end error
+    else
+      h2o.print.columns result.col_names, result.head
+      h2o.removeAll -> t.end()
+
+test.only 'sequence(11, 12, 0.1)', (t) ->
+  vec = h2o.sequence 11, 12, 0.1
+  vec (error, result) ->
+    if error
+      t.end error
+    else
+      h2o.print.columns result.col_names, result.head
+      h2o.removeAll -> t.end()
+
+test 'Load frames in parallel', (t) ->
   flights = h2o.importFrame path: flights14_zip
   delays = h2o.importFrame path: delays14_zip
   weather = h2o.importFrame path: weather14_zip
