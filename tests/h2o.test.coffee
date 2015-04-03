@@ -96,6 +96,20 @@ test 'getFrame(non-string)', (t) ->
   h2o.getFrame '', fail t
   end t
 
+
+airlines_trains_csv = path.join __dirname, '..', 'examples', 'data', 'AirlinesTrain.csv.zip'
+
+test 'getSummary(key, label)', (t) ->
+  airlines = h2o.importFrame { path: airlines_trains_csv }, (error, frame) ->
+    if error
+      t.end error
+    else
+      h2o.getSummary frame.key.name, frame.columns[0].label, (error, frame) ->
+        if error
+          t.end error
+        else
+          h2o.print frame.columns[0]
+          h2o.removeAll -> t.end()
 test.skip 'importFrame, getFrames, getFrame, getColumnSummary, getJobs, getJobs, removeFrame', (t) ->
   flights = h2o.importFrame path: flights_csv
   frames = h2o.getFrames()
