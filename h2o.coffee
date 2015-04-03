@@ -515,7 +515,7 @@ lib.connect = (host='http://localhost:54321') ->
     astStatement '[', (astRead key), (astRange begin, end), astNull()
 
   selectVector = method (frame, label, go) ->
-    fj.resolve frame, (error, frame) ->
+    resolve frame, (error, frame) ->
       if error
         go error
       else
@@ -535,15 +535,14 @@ lib.connect = (host='http://localhost:54321') ->
 
   mapVectors = method (arg, func, go) ->
     vectors_ = if _.isArray arg then arg else [ arg ]
-    fj.join vectors_, (error, vectors) ->
+    resolve vectors_, (error, vectors) ->
       if error
         go error
       else
         vectorKeys = vectors.map keyOf
         try
           op = transpiler.map vectorKeys, func
-          targetKey = do uuid
-          evaluate (astPut targetKey, op), (error, vector) ->
+          evaluate (astPut uuid(), op), (error, vector) ->
             if error
               go error
             else
@@ -554,18 +553,15 @@ lib.connect = (host='http://localhost:54321') ->
 
   filterFrame = method (frame_, arg, func, go) ->
     vectors_ = if _.isArray arg then arg else [ arg ]
-    deps_ = [ frame_ ].concat vectors_
-    fj.join deps_, (error, deps) ->
+    resolve frame_, vectors_, (error, frame, vectors) ->
       if error
         go error
       else
-        [ frame, vectors...] = deps
         sourceKey = frame.key.name
         vectorKeys = vectors.map keyOf
         try
           op = transpiler.map vectorKeys, func
-          targetKey = do uuid
-          evaluate (astPut targetKey, astFilter sourceKey, op), (error, frame) ->
+          evaluate (astPut uuid(), astFilter sourceKey, op), (error, frame) ->
             if error
               go error
             else
@@ -576,14 +572,12 @@ lib.connect = (host='http://localhost:54321') ->
   sliceFrame = method (frame_, begin, end, go) ->
     # TODO validate begin/end
     # TODO use resolve()
-    fj.join [ frame_ ], (error, result) ->
+    resolve frame_, (error, frame) ->
       if error
         go error
       else
-        [ frame ] = result
         sourceKey = frame.key.name
-        targetKey = do uuid
-        evaluate (astPut targetKey, astSlice sourceKey, begin, end - 1), (error, frame) ->
+        evaluate (astPut uuid(), astSlice sourceKey, begin, end - 1), (error, frame) ->
           if error
             go error
           else
@@ -591,7 +585,7 @@ lib.connect = (host='http://localhost:54321') ->
 
   _bindVectors = method (targetKey, vectors, go) ->
     # TODO use resolve()
-    fj.join vectors, (error, vectors) ->
+    resolve vectors, (error, vectors) ->
       if error
         go error
       else
@@ -622,7 +616,7 @@ lib.connect = (host='http://localhost:54321') ->
             go null, frame
 
   concatFrames = method (frames_, go) ->
-    fj.join frames_, (error, frames) ->
+    resolve frames_, (error, frames) ->
       if error
         go error
       else
