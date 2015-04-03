@@ -177,9 +177,13 @@ lib.connect = (host='http://localhost:54321') ->
   getRDDs = method (go) ->
     get '/3/RDDs.json', unwrap go, (result) -> result.rdds
 
-  getSummary = method (key, columnLabel, go) ->
-    get "/3/Frames.json/#{enc key}/columns/#{enc columnLabel}/summary", unwrap go, (result) ->
-      _.head result.frames
+  #TODO why require a frame to get at the vec?
+  getSummary = method (frame_, columnLabel, go) ->
+    #TODO validation
+    join frame_, go, (frame) ->
+      key = keyOf frame
+      get "/3/Frames.json/#{enc key}/columns/#{enc columnLabel}/summary", unwrap go, (result) ->
+        _.head patchFrames result.frames
 
   getJobs = method (go) ->
     get '/2/Jobs.json', unwrap go, (result) ->
