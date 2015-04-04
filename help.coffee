@@ -40,8 +40,8 @@ dump = (obj) -> console.log JSON.stringify obj, null, 2
 
 collectTypesInUse = (func) ->
   _.flattenDeep [
-    _.pluck func.syntax, 'output'
-    _.pluck func.parameters, 'type'
+    _.map func.syntax, (usage) -> usage.output.constituents
+    _.map func.parameters, (param) -> if param.isFunction then [(_.pluck param.type.inputs, 'constituents'), param.type.output.constituents] else param.type.constituents
   ]
 
 validate = (typeIds, funcs) ->
@@ -50,14 +50,12 @@ validate = (typeIds, funcs) ->
       throw new Error "Type [#{type}] not found in [#{func.name}] function definition"
   return
 
-printType = (chain) ->
-  len = chain.length
-  type = chain[ len - 1 ]
-  i = len - 2
-  while i >= 0
-    token = chain[i--]
-    type = if token is 'Array' then "[#{type}]" else "#{token}&lt;#{type}&gt;"
-  type
+printUsage = (usage) ->
+  inputs = usage.inputs
+    .map (input) -> _.escape input.type
+    .join ', '
+
+  '(' + inputs + ') &rarr; ' + _.escape usage.output.type
 
 printFunction = (func) ->
   [ div, table, tbody, tr, td, th ] = template 'div', 'table', 'tbody', 'tr', 'td', 'th'
@@ -65,14 +63,14 @@ printFunction = (func) ->
   parametersTable = table tbody func.parameters.map (parameter) ->
     tr [
       td parameter.name
-      td printType parameter.type
+      td if parameter.isFunction then printUsage parameter.type else _.escape parameter.type.type
       td marked parameter.description
     ]
 
   usageTable = table tbody func.syntax.map (usage) ->
     tr [
       td "#{func.name}(#{ usage.inputs.join ', ' })"
-      td printType usage.output
+      td '&rarr; ' + _.escape usage.output.type
     ]
 
   trs = [
@@ -101,6 +99,8 @@ generateDocs = (config) ->
   mkdir outputDir
 
   definitions = digest config.sources, (sourceFile) -> locate sourceFile
+
+  # return dump definitions
 
   typeDict = _.indexBy definitions.types, (type) -> type.name
   validate typeDict, definitions.functions
