@@ -58,7 +58,7 @@ printUsage = (usage) ->
   '(' + inputs + ') &rarr; ' + _.escape usage.output.type
 
 printFunction = (func) ->
-  [ div, table, tbody, tr, td, th ] = template 'div', 'table', 'tbody', 'tr', 'td', 'th'
+  [ div, table, tbody, tr, td, th, pre ] = template 'div', 'table', 'tbody', 'tr', 'td', 'th', 'pre'
 
   parametersTable = table tbody func.parameters.map (parameter) ->
     tr [
@@ -71,6 +71,13 @@ printFunction = (func) ->
     tr [
       td "#{func.name}(#{ usage.inputs.join ', ' })"
       td '&rarr; ' + _.escape usage.output.type
+    ]
+
+  examplesSection = for example in func.examples
+    div [
+      div marked example.description
+      pre example.code
+      pre coffee.compile example.code, bare: yes
     ]
 
   trs = [
@@ -89,6 +96,10 @@ printFunction = (func) ->
     tr [
       th 'Arguments'
       td parametersTable
+    ]
+    tr [
+      th 'Examples'
+      td examplesSection
     ]
   ]
 
