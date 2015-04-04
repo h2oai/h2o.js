@@ -70,7 +70,13 @@ parseFuncParams = (block) ->
           description: ''
   params
 
-parseFunc = ([ headerBlock, syntaxBlock, paramsBlock ]) ->
+parseFuncExample = (block) ->
+  [ description, code ] = block.split /[`]{3,}/
+
+  description: description
+  code: code
+
+parseFunc = (headerBlock, syntaxBlock, paramsBlock, exampleBlocks...) ->
   [ name, description ] = parseHeader headerBlock
 
   throw new Error "No syntax defined for function [#{name}]" unless syntaxBlock
@@ -81,8 +87,9 @@ parseFunc = ([ headerBlock, syntaxBlock, paramsBlock ]) ->
   description: description
   syntax: parseFuncSyntax syntaxBlock
   parameters: parseFuncParams paramsBlock
+  examples: exampleBlocks.map parseFuncExample
 
-parseType = ([ headerBlock ]) ->
+parseType = (headerBlock) ->
   [ name, description ] = parseHeader headerBlock
 
   type: 'type'
@@ -90,11 +97,7 @@ parseType = ([ headerBlock ]) ->
   description: description
 
 parseMetadata = (source, parse) ->
-  parse(
-    source
-      .split /\-{3,}/g
-      .map (block) -> block.trim()
-  )
+  parse.apply null, source.split(/\-{3,}/g).map (block) -> block.trim()
 
 parseComment = (source) ->
   if /^function\s*/.test source
