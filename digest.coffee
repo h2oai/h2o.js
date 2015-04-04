@@ -1,7 +1,5 @@
 _ = require 'lodash'
 fs = require 'fs-extra'
-path = require 'path'
-yaml = require 'js-yaml'
 esprima = require 'esprima'
 EOL = "\n"
 
@@ -22,40 +20,86 @@ collectComments = (node, comments) ->
         collectComments child, comments
   comments
 
-parseFunc = (meta, description) ->
-  _.defaults meta,
-    syntax: {}
-    parameters: {}
+parseHeader = (block) ->
+  lines = block.split EOL
+  [ type, name ] = words lines.shift()
+  [ name, lines.join EOL ]
 
-  syntax = for k, v of meta.syntax
-    inputs: words k
-    output: words v.trim()
+clean = (line) ->
+  line.trim().replace /\s+/g, ''
 
-  parameters = for k, v of meta.parameters
-    [ name, types... ] = words k
-    name: name
-    type: types
-    description: v.trim()
+parseCompositeType = (line) ->
+  type: line
+  constituents: line.match /\w+/g
 
-  type: 'func'
-  name: meta['function']
+parseFuncUsage = (line) ->
+  [ inputs, output ] = line.split '->' 
+  inputs: words inputs.trim()
+  output: parseCompositeType output.trim()
+
+parseFuncSyntax = (block) ->
+  for line in block.split EOL
+    parseFuncUsage line
+
+parseFuncParams = (block) ->
+  params = []
+  for line in block.split EOL
+    if /^\s+/.test line 
+      if params.length isnt 0
+        last = params[params.length - 1]
+        last.description += (if last.description then EOL else '') + line.trim()
+    else
+      [ name, other ] = line.split ':'
+      throw new Error "Type not defined for parameter [#{name}]" unless other
+
+      if 0 <= other.indexOf '->'
+        # function
+        usage = parseFuncUsage other
+        # inputs are types, not identifiers, so parse again
+        usage.inputs = usage.inputs.map parseCompositeType
+        params.push
+          name: name
+          isFunction: yes
+          type: usage
+          description: ''
+      else
+        params.push
+          name: name
+          isFunction: no
+          type: parseCompositeType other
+          description: ''
+  params
+
+parseFunc = ([ headerBlock, syntaxBlock, paramsBlock ]) ->
+  [ name, description ] = parseHeader headerBlock
+
+  throw new Error "No syntax defined for function [#{name}]" unless syntaxBlock
+  throw new Error "No parameters defined for function [#{name}]" unless paramsBlock
+
+  type: 'function'
+  name: name
   description: description
-  syntax: syntax
-  parameters: parameters
+  syntax: parseFuncSyntax syntaxBlock
+  parameters: parseFuncParams paramsBlock
 
-parseType = (meta, description) ->
+parseType = ([ headerBlock ]) ->
+  [ name, description ] = parseHeader headerBlock
+
   type: 'type'
-  name: meta.type
+  name: name
   description: description
 
 parseMetadata = (source, parse) ->
-  [ header, description ] = source.split /\-{3,}/
-  parse (yaml.safeLoad header), description.trim()
+  parse(
+    source
+      .split /\-{3,}/g
+      .map (block) -> block.trim()
+  )
 
 parseComment = (source) ->
-  if /^function\s*:/.test source
+  if /^function\s*/.test source
     parseMetadata source, parseFunc
-  else if /^type\s*:/.test source
+  else if /^type\s*/.test source
     parseMetadata source, parseType
   else
     undefined
@@ -88,6 +132,6 @@ digest = (sourceFiles) ->
   blocks = _.groupBy (_.flatten blocksByFile), 'type'
 
   types: blocks.type ? []
-  functions: blocks.func ? []
+  functions: blocks['function'] ? []
 
 module.exports = digest
