@@ -6,7 +6,8 @@
   "scripts": {
     "start": "coffee --compile .",
     "test": "npm start && node test.js",
-    "coverage": "npm start && istanbul cover -x **/examples/** test.js"
+    "coverage": "npm start && istanbul cover -x **/examples/** test.js",
+    "doc": "npm start && node help.js"
   },
   "repository": {
     "type": "git",
@@ -40,8 +41,14 @@
   },
   "devDependencies": {
     "coffee-script": "^1.9.1",
+    "diecut": "0.0.1",
     "faucet": "0.0.1",
+    "fs-extra": "^0.18.0",
+    "highlight.js": "^8.5.0",
     "istanbul": "^0.3.8",
+    "js-yaml": "^3.2.7",
+    "marked": "^0.3.3",
+    "mkdirp": "^0.5.0",
     "tape": "^3.5.0"
   }
 }
