@@ -324,9 +324,11 @@ main = (config) ->
   schemas = toJavascriptSchemas typeDict, schemas
   schemas = _.sortBy schemas, (schema) -> schema.name
 
-  validateTypesInFunc typeDict, definitions.functions
+  functionDefinitions = _.sortBy definitions.functions, (func) -> func.name
 
-  funcDict = _.indexBy definitions.functions, (func) -> func.category
+  validateTypesInFunc typeDict, functionDefinitions
+
+  funcDict = _.indexBy functionDefinitions, (func) -> func.category
 
   index_md = read path.join docDir, 'index.md'
   content = marked index_md
@@ -335,11 +337,11 @@ main = (config) ->
 
   body =  [
     content
+    h1 'Functions'
+    printFunctions functionDefinitions
     h1 'Types'
     printTypes definitions.types
     printSchemas schemas
-    h1 'Functions'
-    printFunctions definitions.functions
   ]
 
   typeLinks = for type in definitions.types
@@ -348,7 +350,7 @@ main = (config) ->
   schemaLinks = for schema in schemas
     link schema.name, "#type-#{schema.name}"
 
-  functionLinks = for func in definitions.functions
+  functionLinks = for func in functionDefinitions
     link "#{func.name}()", "#func-#{func.name}"
 
   toc = [
