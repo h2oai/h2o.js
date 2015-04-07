@@ -130,6 +130,35 @@ connect = (host) ->
           ''
         go new H2OError "Error calling #{opts.method} #{opts.url}#{parameters}.", cause
 
+###
+type undefined
+A Javascript [undefined](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/undefined)
+###
+###
+type Object
+A Javascript [Object](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object)
+###
+###
+type Error
+A Javascript [Error](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Error)
+###
+###
+type Boolean
+A Javascript [Boolean](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Boolean)
+###
+###
+type String
+A Javascript [String](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String)
+###
+###
+type Number
+A Javascript [Number](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Number)
+###
+###
+type Future
+TODO: Description goes here.
+###
+
 lib.connect = (host='http://localhost:54321') ->
 
   request = connect host
