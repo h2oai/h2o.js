@@ -342,7 +342,7 @@ main = (config) ->
     link type.name, "#type-#{type.name}"
 
   schemaLinks = for schema in schemas
-    link schema.name, "#schema-#{schema.name}"
+    link schema.name, "#type-#{schema.name}"
 
   toc = typeLinks
     .concat schemaLinks
