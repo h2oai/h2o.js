@@ -49,7 +49,7 @@ parseFuncParams = (block) ->
         last = params[params.length - 1]
         last.description += (if last.description then EOL else '') + line.trim()
     else
-      [ name, other ] = line.split ':'
+      [ name, other ] = line.split /\s*:\s*/
       throw new Error "Type not defined for parameter [#{name}]" unless other
 
       if 0 <= other.indexOf '->'
