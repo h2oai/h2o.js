@@ -7,7 +7,8 @@
     "start": "coffee --compile .",
     "test": "npm start && node test.js",
     "coverage": "npm start && istanbul cover -x **/examples/** test.js",
-    "doc": "npm start && node help.js"
+    "doc": "npm start && node help.js",
+    "export-schemas": "npm start && node export-schemas.js"
   },
   "repository": {
     "type": "git",
