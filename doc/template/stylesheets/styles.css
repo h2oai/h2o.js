@@ -160,7 +160,11 @@ hr {
     margin:auto;
     padding:50px;
   }
-
+  
+  .sidebar ul li {
+    display: inline-block;
+    padding-right: 10px;
+  }
 }
 
 @media print, screen and (max-width: 720px) {
@@ -169,7 +173,7 @@ hr {
   }
   
   .sidebar, .content {
-    padding:0;
+    padding:25px;
   }
   
   pre, code {
@@ -178,10 +182,13 @@ hr {
 }
 
 @media print, screen and (max-width: 480px) {
-  body {
+  .sidebar, .content {
     padding:15px;
   }
-  
+  .sidebar ul li {
+    display: inherit;
+    padding-right: inherit;
+  }
 }
 
 @media print {
