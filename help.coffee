@@ -108,9 +108,9 @@ createRunnableExample = (title, source) ->
   code = source
     .replace termination, (match, prefix, keyword) ->
       if keyword is 'fail'
-        "#{prefix}t.end error"
+        "#{prefix}t.fail(error.message)#{EOL}#{prefix}t.end()"
       else # 'pass'
-        "#{prefix}t.end()"
+        "#{prefix}t.pass('#{title}')#{EOL}#{prefix}t.end()"
     .split EOL
     .map (line) -> '  ' + line
     .join EOL
