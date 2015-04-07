@@ -264,16 +264,19 @@ linkToType = (compositeType) ->
         link match, "#type-#{match}"
 
 printSchemas = (schemas) ->
-  [ table, tbody, tr, th, td, code, bookmark ] = template 'table', 'tbody', 'tr', 'th', 'td', 'code', 'a name="$1"'
+  [ table, tbody, tr, th, td, tdr, code, bookmark, sup ] = template 'table', 'tbody', 'tr', 'th', 'td', 'td.right', 'code', 'a name="$1"', 'sup'
 
   content = schemas
     .map (schema) ->
       trs = schema.fields.map (field) ->
         tr [
-          td code field.name
-          td code linkToType field.type
-          td field.direction
+          tdr [
+            code field.name
+            '<br/>'
+            code linkToType field.type
+          ]
           td stripParagraph marked field.description
+          td field.direction
         ]
       [
         bookmark '', "type-#{schema.name}"
@@ -356,7 +359,8 @@ main = (config) ->
   write (path.join webDir, 'index.html'), html
 
   cpn (path.join docDir, 'template', 'javascripts', 'scale.fix.js'), path.join webDir, 'javascripts', 'scale.fix.js'
-  cpn (path.join docDir, 'template', 'stylesheets', 'styles.css'), path.join webDir, 'stylesheets', 'styles.css'
+  cp (path.join docDir, 'template', 'stylesheets', 'styles.css'), path.join webDir, 'stylesheets', 'styles.css'
+  cpn (path.join docDir, 'template', 'stylesheets', 'swirl.png'), path.join webDir, 'stylesheets', 'swirl.png'
 
   console.log 'Done!'
 
