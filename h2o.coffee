@@ -686,8 +686,8 @@ lib.connect = (host='http://localhost:54321') ->
   vectors -> Future<RapidsV1>
   vectors go -> None
   ---
-  vectors : [Vector]
-    The array of vectors to bind together.
+  vectors: [Vector]
+    The vectors to bind together.
   go: Error RapidsV1 -> None
     Error-first callback.
   ---
@@ -737,7 +737,7 @@ lib.connect = (host='http://localhost:54321') ->
   ```
   odd = h2o.combine [ 1, 3, 5, 7, 9 ]
   even = h2o.combine [ 2, 4, 5, 8, 10 ]
-  primes = h2o.combine [ 2, 3, 5, 7, 11 ]
+  prime = h2o.combine [ 2, 3, 5, 7, 11 ]
   fibonacci = h2o.combine [ 0, 1, 1, 2, 3 ]
 
   schema =
@@ -745,7 +745,7 @@ lib.connect = (host='http://localhost:54321') ->
     columns:
       'Odd': odd
       'Even': even
-      'Primes': primes
+      'Prime': prime
       'Fibonacci': fibonacci
 
   h2o.createFrame schema, (error, result) ->
@@ -772,6 +772,53 @@ lib.connect = (host='http://localhost:54321') ->
           else
             go null, frame
 
+  ###
+  function concat
+  Concatenate rows from multiple frames to form a new frame.
+  ---
+  frames -> Future<RapidsV1>
+  frames go -> None
+  ---
+  frames: [FrameV2]
+    The frames to concatenate.
+  go: Error RapidsV1 -> None
+    Error-first callback.
+  ---
+  concat(f1, f2)
+  Create and concatenate three frames.
+  ```
+  odd = h2o.combine [ 1, 3, 5, 7, 9 ]
+  even = h2o.combine [ 2, 4, 5, 8, 10 ]
+  prime = h2o.combine [ 2, 3, 5, 7, 11 ]
+  fibonacci = h2o.combine [ 0, 1, 1, 2, 3 ]
+
+  frame1 = h2o.bind [ odd, even ]
+  frame2 = h2o.bind [ prime, fibonacci ]
+
+  h2o.concat [ frame1, frame2 ], (error, result) ->
+    if error
+      fail
+    else
+      h2o.print.columns result.col_names, result.head
+      h2o.removeAll ->
+        pass
+  ---
+  concat(f1, f1)
+  Concatenate a frame to itself.
+  ```
+  odd = h2o.combine [ 1, 3, 5, 7, 9 ]
+  even = h2o.combine [ 2, 4, 5, 8, 10 ]
+
+  frame1 = h2o.bind [ odd, even ]
+
+  h2o.concat [ frame1, frame1 ], (error, result) ->
+    if error
+      fail
+    else
+      h2o.print.columns result.col_names, result.head
+      h2o.removeAll ->
+        pass
+  ###
   concatFrames = method (frames_, go) ->
     fj.join frames_, (error, frames) ->
       if error
