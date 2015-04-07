@@ -140,8 +140,9 @@ exportExamples = (outputDir, functions) ->
       coffeescript = createRunnableExample title, code
       write (path.join outputDir, "#{title}.coffee"), coffeescript
 
-      javascript = compileCoffee coffeescript
-      write (path.join outputDir, "#{title}.js"), javascript
+      # Automatically compiled by package.json start task
+      #javascript = compileCoffee coffeescript
+      #write (path.join outputDir, "#{title}.js"), javascript
 
       commands.push "require './#{title}.js'"
 
