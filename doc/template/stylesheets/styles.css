@@ -63,9 +63,10 @@ code, pre {
 
 pre {
   padding:8px 15px;
-  background: #f8f8f8;  
-  border:1px solid #e5e5e5;
+  /* background: #f8f8f8;  
+  border:1px solid #e5e5e5; */
   overflow-x: auto;
+  background: url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAQAAAAECAIAAAAmkwkpAAAAKElEQVQImWN89+4dAwODoKAgAwMDE5z1/v17xv///0NYUBkIS1BQEAB7Uw7Oc/qzUwAAAABJRU5ErkJggg==");
 }
 
 table {
