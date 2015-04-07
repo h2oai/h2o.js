@@ -135,7 +135,7 @@ exportExamples = (outputDir, functions) ->
   commands = []
   for func in functions
     for { title, description, code } in func.examples
-      throw new Error "Bad characters in example title [#{title}]" unless /^[\w,\(\) -]+$/g.test title
+      throw new Error "Bad characters in example title [#{title}]" unless /^[\w,\(\)\. -]+$/g.test title
 
       coffeescript = createRunnableExample title, code
       write (path.join outputDir, "#{title}.coffee"), coffeescript
