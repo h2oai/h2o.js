@@ -194,6 +194,26 @@ lib.connect = (host='http://localhost:54321') ->
 #       dest_keys: encodeArray parameter.dest_keys
     post '/2/SplitFrame.json', (encodeObject parameters), go
 
+  ###
+  function getFrames
+  Retrieve a list of all the frames in your cluster.
+  ---
+  -> Future<FrameV2[]>
+  go -> None
+  ---
+  go: Error FrameV2[] -> None
+    Error-first callback.
+  ---
+  getFrames()
+  Retrieve a list of all the frames in your cluster.
+  ```
+  h2o.getFrames (error, frames) ->
+    if error
+      fail
+    else
+      h2o.print frames
+      pass
+  ###
   getFrames = method (go) ->
     get '/3/Frames.json', unwrap go, (result) -> patchFrames result.frames
 
@@ -216,6 +236,26 @@ lib.connect = (host='http://localhost:54321') ->
       get "/3/Frames.json/#{enc key}/columns/#{enc columnLabel}/summary", unwrap go, (result) ->
         _.head patchFrames result.frames
 
+  ###
+  function getJobs
+  Retrieve a list of all the jobs in your cluster.
+  ---
+  -> Future<JobV2[]>
+  go -> None
+  ---
+  go: Error JobV2[] -> None
+    Error-first callback.
+  ---
+  getJobs()
+  Retrieve a list of all the jobs in your cluster.
+  ```
+  h2o.getJobs (error, jobs) ->
+    if error
+      fail
+    else
+      h2o.print jobs
+      pass
+  ###
   getJobs = method (go) ->
     get '/2/Jobs.json', unwrap go, (result) ->
       result.jobs
@@ -224,7 +264,7 @@ lib.connect = (host='http://localhost:54321') ->
     get "/2/Jobs.json/#{enc key}", unwrap go, (result) ->
       _.head result.jobs
 
-  waitForJob = method (key, go) ->
+  waitFor = method (key, go) ->
     poll = ->
       getJob key, (error, job) ->
         if error
@@ -288,7 +328,7 @@ lib.connect = (host='http://localhost:54321') ->
         delete_on_done: yes
 
     job = fj.lift parseResult, (result) ->
-      waitForJob result.job.key.name
+      waitFor result.job.key.name
 
     frame = fj.lift job, (job) ->
       getFrame job.dest.name
@@ -307,6 +347,26 @@ lib.connect = (host='http://localhost:54321') ->
               catch parseError
     models
 
+  ###
+  function getModels
+  Retrieve a list of all the models in your cluster.
+  ---
+  -> Future<ModelSchema[]>
+  go -> None
+  ---
+  go: Error ModelSchema[] -> None
+    Error-first callback.
+  ---
+  getModels()
+  Retrieve a list of all the models in your cluster.
+  ```
+  h2o.getModels (error, models) ->
+    if error
+      fail
+    else
+      h2o.print models
+      pass
+  ###
   getModels = method (go) ->
     get '/3/Models.json', unwrap go, (result) ->
       #XXX
@@ -364,7 +424,7 @@ lib.connect = (host='http://localhost:54321') ->
       buildModel algo, parameters
 
     job = fj.lift build, (build) ->
-      waitForJob build.job.key.name
+      waitFor build.job.key.name
 
     model = fj.lift job, (job) ->
       getModel job.dest.name
@@ -790,6 +850,7 @@ lib.connect = (host='http://localhost:54321') ->
   # Jobs
   getJobs: getJobs
   getJob: getJob
+  waitFor: waitFor
   cancelJob: cancelJob
 
   # Meta
