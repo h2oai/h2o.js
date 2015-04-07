@@ -158,6 +158,10 @@ A Javascript [Number](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Re
 type Future
 TODO: Description goes here.
 ###
+###
+type Vector
+TODO: Description goes here.
+###
 
 lib.connect = (host='http://localhost:54321') ->
 
@@ -627,7 +631,7 @@ lib.connect = (host='http://localhost:54321') ->
 
   mapVectors = method (arg, func, go) ->
     vectors_ = if _.isArray arg then arg else [ arg ]
-    resolve vectors_, (error, vectors) ->
+    fj.join vectors_, (error, vectors) ->
       if error
         go error
       else
@@ -645,7 +649,7 @@ lib.connect = (host='http://localhost:54321') ->
 
   filterFrame = method (frame_, arg, func, go) ->
     vectors_ = if _.isArray arg then arg else [ arg ]
-    resolve frame_, vectors_, (error, frame, vectors) ->
+    fj.join [frame_].concat(vectors_), (error, [frame, vectors...]) ->
       if error
         go error
       else
@@ -675,9 +679,34 @@ lib.connect = (host='http://localhost:54321') ->
           else
             go null, frame
 
+  ###
+  function bind
+  Bind multiple vectors together to form a new anonymous frame.
+  ---
+  vectors -> Future<RapidsV1>
+  vectors go -> None
+  ---
+  vectors : [Vector]
+    The array of vectors to bind together.
+  go: Error RapidsV1 -> None
+    Error-first callback.
+  ---
+  bind()
+  Create and bind three vectors into a new frame.
+  ```
+  seq1 = h2o.sequence 1, 10
+  seq2 = h2o.sequence 11, 20
+  seq3 = h2o.sequence 21, 30
+  h2o.bind [ seq1, seq2, seq3 ], (error, result) ->
+    if error
+      fail
+    else
+      h2o.print.columns result.col_names, result.head
+      h2o.removeAll ->
+        pass
+  ###
   _bindVectors = method (targetKey, vectors, go) ->
-    # TODO use resolve()
-    resolve vectors, (error, vectors) ->
+    fj.join vectors, (error, vectors) ->
       if error
         go error
       else
@@ -691,6 +720,42 @@ lib.connect = (host='http://localhost:54321') ->
   bindVectors = method (vectors, go) ->
     _bindVectors uuid(), vectors, go
 
+  ###
+  function createFrame
+  Bind and name multiple vectors together to form a new named frame.
+  ---
+  schema -> Future<RapidsV1>
+  schema go -> None
+  ---
+  schema: Object
+    An object of the form `{ name: 'Frame Name', columns: { "Column 1 Name": vector_1 , "Column 2 Name": vector_2, ... "Column N Name": vector_N } }`
+  go: Error RapidsV1 -> None
+    Error-first callback.
+  ---
+  createFrame()
+  Create a named frame using four arrays.
+  ```
+  odd = h2o.combine [ 1, 3, 5, 7, 9 ]
+  even = h2o.combine [ 2, 4, 5, 8, 10 ]
+  primes = h2o.combine [ 2, 3, 5, 7, 11 ]
+  fibonacci = h2o.combine [ 0, 1, 1, 2, 3 ]
+
+  schema =
+    name: 'Numbers'
+    columns:
+      'Odd': odd
+      'Even': even
+      'Primes': primes
+      'Fibonacci': fibonacci
+
+  h2o.createFrame schema, (error, result) ->
+    if error
+      fail
+    else
+      h2o.print.columns result.col_names, result.head
+      h2o.removeAll ->
+        pass
+  ###
   createFrame = method (parameters, go) ->
     { name, columns } = parameters
 
@@ -708,7 +773,7 @@ lib.connect = (host='http://localhost:54321') ->
             go null, frame
 
   concatFrames = method (frames_, go) ->
-    resolve frames_, (error, frames) ->
+    fj.join frames_, (error, frames) ->
       if error
         go error
       else
@@ -812,9 +877,9 @@ lib.connect = (host='http://localhost:54321') ->
   start end go -> None
   start end step go -> None
   ---
-  start : Number
+  start: Number
     The starting value of the sequence.
-  end  : Number
+  end: Number
     The end value of the sequence.
   step: Number
     Increment of the sequence.
@@ -935,9 +1000,9 @@ lib.connect = (host='http://localhost:54321') ->
   about: about
 
   # Local
-  bind: bindVectors # TODO createFrame?
-  select: selectVector # TODO getColumn?
-  map: mapVectors # TODO mapColumns?
+  bind: bindVectors
+  select: selectVector
+  map: mapVectors
   filter: filterFrame
   slice: sliceFrame
   concat: concatFrames
