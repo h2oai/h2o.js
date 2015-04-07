@@ -86,8 +86,8 @@ printFunction = (func) ->
   examplesSection = for example in func.examples
     div [
       div marked example.description
-      cs example.code
-      js compileCoffee example.code
+      cs (highlight.highlightAuto example.code, ['coffeescript']).value
+      js (highlight.highlightAuto (compileCoffee example.code), ['javascript']).value
     ]
 
   [
@@ -348,7 +348,7 @@ main = (config) ->
     link schema.name, "#type-#{schema.name}"
 
   functionLinks = for func in definitions.functions
-    link func.name, "#func-#{func.name}"
+    link "#{func.name}()", "#func-#{func.name}"
 
   toc = [
     h2 'Functions'
@@ -367,6 +367,7 @@ main = (config) ->
   cpn (path.join docDir, 'template', 'javascripts', 'scale.fix.js'), path.join webDir, 'javascripts', 'scale.fix.js'
   cp (path.join docDir, 'template', 'stylesheets', 'styles.css'), path.join webDir, 'stylesheets', 'styles.css'
   cpn (path.join docDir, 'template', 'stylesheets', 'swirl.png'), path.join webDir, 'stylesheets', 'swirl.png'
+  cpn 'node_modules/highlight.js/styles/tomorrow.css', 'web/stylesheets/syntax.css'
 
   console.log 'Done!'
 
