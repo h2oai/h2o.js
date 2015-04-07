@@ -121,9 +121,12 @@ hr {
   box-sizing: border-box;
 }
 
-.sidebar h1 {
+.sidebar h1, .sidebar h2, .sidebar h3 {
   color: #fef486;
   font-weight:normal;
+}
+
+.sidebar h1 {
   font-size:35px;
   margin:20px 0;
 }

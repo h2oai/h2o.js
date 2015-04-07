@@ -347,14 +347,20 @@ main = (config) ->
   schemaLinks = for schema in schemas
     link schema.name, "#type-#{schema.name}"
 
-  toc = typeLinks
-    .concat schemaLinks
-    .map (link) -> li link
+  functionLinks = for func in definitions.functions
+    link func.name, "#func-#{func.name}"
+
+  toc = [
+    h2 'Functions'
+    ul functionLinks.map (link) -> li link
+    h2 'Types'
+    ul typeLinks.concat(schemaLinks).map (link) -> li link
+  ]
 
   index_html = read path.join docDir, 'template', 'index.html'
   html = index_html
     .replace '{{content}}', body.join EOL
-    .replace '{{toc}}', ul toc
+    .replace '{{toc}}', toc.join EOL
 
   write (path.join webDir, 'index.html'), html
 

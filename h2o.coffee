@@ -702,7 +702,7 @@ lib.connect = (host='http://localhost:54321') ->
   start end go -> None
   start end step go -> None
   ---
-  start : Future<Number>[]
+  start : Number
     The starting value of the sequence.
   end  : Number
     The end value of the sequence.
