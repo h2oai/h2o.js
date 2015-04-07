@@ -52,11 +52,11 @@ parameterize = (route, form) ->
   else
     route
 
-encodeArray = (array) -> 
+encodeArray = (array) ->
   if array
     if array.length is 0
-      null 
-    else 
+      null
+    else
       "[#{array.map((element) -> if _.isNumber element then element else "\"#{element}\"").join ','}]"
   else
     null
@@ -82,7 +82,7 @@ patchFrame = (frame) ->
     column.key = frame.vec_keys[i]
   frame
 
-patchFrames = (frames) -> 
+patchFrames = (frames) ->
   for frame in frames
     patchFrame frame
   frames
@@ -97,7 +97,7 @@ class H2OError extends Error
 
 connect = (host) ->
   (method, route, formAttribute, formData, go) ->
-    opts = 
+    opts =
       method: method
       url: "#{host}#{route}"
       json: yes
@@ -239,7 +239,7 @@ lib.connect = (host='http://localhost:54321') ->
             when 'DONE'
               go null, job
             when 'CREATED', 'RUNNING'
-              setTimeout poll, 1000 
+              setTimeout poll, 1000
             else # 'CANCELLED', 'FAILED'
               go (new H2OError "Job #{key} failed: #{job.exception}"), job
     poll()
@@ -269,7 +269,7 @@ lib.connect = (host='http://localhost:54321') ->
       path: parameters.path
 
     setupResult = fj.lift importResult, (result) ->
-      setupParse 
+      setupParse
         source_keys: result.keys
 
     parseResult = fj.lift setupResult, (result) ->
@@ -400,7 +400,7 @@ lib.connect = (host='http://localhost:54321') ->
       else
         #
         # TODO workaround for a filtering bug in the API
-        # 
+        #
         predictions = for prediction in result.model_metrics
           if modelKey and prediction.model.name isnt modelKey
             null
@@ -491,11 +491,11 @@ lib.connect = (host='http://localhost:54321') ->
 
   whitespace = /\s+/
 
-  _astStatement = (op, args) ->
+  astApply = (op, args) ->
     "(#{[op].concat(args).join ' '})"
 
-  astStatement = (op, args...) ->
-    _astStatement op, args
+  astCall = (op, args...) ->
+    astApply op, args
 
   astString = (string) ->
     JSON.stringify string
@@ -513,7 +513,7 @@ lib.connect = (host='http://localhost:54321') ->
     "{#{ list.join ';' }}"
 
   astSpan = (begin, end) ->
-    astStatement ':', (astNumber begin), (astNumber end)
+    astCall ':', (astNumber begin), (astNumber end)
 
   astStrings = (strings) ->
     astList (astString string for string in strings)
@@ -522,29 +522,29 @@ lib.connect = (host='http://localhost:54321') ->
     astList (astNumber number for number in numbers)
 
   astPut = (key, op) ->
-    astStatement '=', (astWrite key), op
+    astCall '=', (astWrite key), op
 
   astBind = (keys) ->
-    _astStatement 'cbind', keys.map astRead
+    astApply 'cbind', keys.map astRead
 
   astConcat = (keys) ->
-    _astStatement 'rbind', keys.map astRead
+    astApply 'rbind', keys.map astRead
 
   astColNames = (key, names) ->
-    astStatement 'colnames=', (astRead key), (astList [astSpan 0, names.length - 1]), (astStrings names)
+    astCall 'colnames=', (astRead key), (astList [astSpan 0, names.length - 1]), (astStrings names)
 
   astBlock = (ops...) ->
-    _astStatement ',', ops
+    astApply ',', ops
 
   astNull = ->
     '"null"'
 
   astFilter = (key, op) ->
-    astStatement '[', (astRead key), op, astNull()
+    astCall '[', (astRead key), op, astNull()
 
   astSlice = (key, begin, end) ->
     #TODO end - 1?
-    astStatement '[', (astRead key), (astList [ astSpan begin, end ]), astNull()
+    astCall '[', (astRead key), (astList [ astSpan begin, end ]), astNull()
 
   selectVector = method (frame, label, go) ->
     resolve frame, (error, frame) ->
@@ -670,7 +670,7 @@ lib.connect = (host='http://localhost:54321') ->
       else
         throw new Error "Cannot combine element [#{element}]"
 
-    evaluate (astPut uuid(), astStatement 'c', astList asts), go
+    evaluate (astPut uuid(), astCall 'c', astList asts), go
 
   combine = dispatch
     'Array': _combine
@@ -678,7 +678,7 @@ lib.connect = (host='http://localhost:54321') ->
 
   _replicate = method (frame_, length, go) ->
     join frame_, go, (frame) ->
-      op = astStatement(
+      op = astCall(
         'rep_len'
         astRead keyOf frame
         astNumber length
@@ -691,8 +691,51 @@ lib.connect = (host='http://localhost:54321') ->
     'Future, Finite, Function': _replicate
     'String, Finite, Function': _replicate
 
-  _seq = method (start, end, step, go) ->
-    op = astStatement(
+  ###
+  function sequence
+  Generate regular sequences.
+  ---
+  end -> Future<RapidsV1>
+  start end -> Future<RapidsV1>
+  start end step -> Future<RapidsV1>
+  end go -> undefined
+  start end go -> undefined
+  start end step go -> undefined
+  ---
+  start : Future<Number>[]
+    The starting value of the sequence.
+  end  : Number
+    The end value of the sequence.
+  step: Number
+    Increment of the sequence.
+  go: Error RapidsV1 -> undefined
+    Error-first callback.
+  ---
+  sequence(10)
+  Create a vector with values from 1 to 10.
+  ```
+  h2o.sequence 10, (error, result) ->
+    if error
+      fail
+    else
+      h2o.print.columns result.col_names, result.head
+      h2o.removeAll ->
+        pass
+  ---
+  sequence(11, 20)
+  Create a vector with values from 11 to 20.
+  ```
+  h2o.sequence 11, 20, (error, result) ->
+    if error
+      fail
+    else
+      h2o.print.columns result.col_names, result.head
+      h2o.removeAll ->
+        pass
+  ###
+
+  _sequence$3 = method (start, end, step, go) ->
+    op = astCall(
       'seq'
       astNumber start
       astNumber end
@@ -700,20 +743,22 @@ lib.connect = (host='http://localhost:54321') ->
     )
     evaluate (astPut uuid(), op), go
 
-  _seqLen = method (end, go) ->
-    op = astStatement(
+  _sequence$1 = method (end, go) ->
+    op = astCall(
       'seq_len'
       astNumber end
     )
     evaluate (astPut uuid(), op), go
 
   sequence = dispatch
-    'Finite': _seqLen
-    'Finite, Finite': (start, end) -> _seq start, end, 1
-    'Finite, Finite, Finite': _seq
-    'Finite, Function': _seqLen
-    'Finite, Finite, Function': (start, end, go) -> _seq start, end, 1, go
-    'Finite, Finite, Finite, Function': _seq
+    'Finite': _sequence$1
+    'Finite, Finite': (start, end) -> _sequence$3 start, end, 1
+    'Finite, Finite, Finite': _sequence$3
+    'Finite, Function': _sequence$1
+    'Finite, Finite, Function': (start, end, go) -> _sequence$3 start, end, 1, go
+    'Finite, Finite, Finite, Function': _sequence$3
+
+
   # Files
   importFile: importFile
   importFiles: importFiles
