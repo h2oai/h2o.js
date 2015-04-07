@@ -71,10 +71,13 @@ parseFuncParams = (block) ->
   params
 
 parseFuncExample = (block) ->
-  [ description, code ] = block.split /[`]{3,}/
+  [ header, code ] = block.split /[`]{3,}/
 
-  description: description
-  code: code
+  [ title, descriptions... ] = header.split EOL
+
+  title: title.trim()
+  description: descriptions.join EOL
+  code: code.trim()
 
 parseFunc = (headerBlock, syntaxBlock, paramsBlock, exampleBlocks...) ->
   [ name, description ] = parseHeader headerBlock
