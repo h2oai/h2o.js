@@ -131,7 +131,7 @@ connect = (host) ->
         go new H2OError "Error calling #{opts.method} #{opts.url}#{parameters}.", cause
 
 ###
-type undefined
+type None
 A Javascript [undefined](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/undefined)
 ###
 ###
@@ -698,9 +698,9 @@ lib.connect = (host='http://localhost:54321') ->
   end -> Future<RapidsV1>
   start end -> Future<RapidsV1>
   start end step -> Future<RapidsV1>
-  end go -> undefined
-  start end go -> undefined
-  start end step go -> undefined
+  end go -> None
+  start end go -> None
+  start end step go -> None
   ---
   start : Future<Number>[]
     The starting value of the sequence.
@@ -708,7 +708,7 @@ lib.connect = (host='http://localhost:54321') ->
     The end value of the sequence.
   step: Number
     Increment of the sequence.
-  go: Error RapidsV1 -> undefined
+  go: Error RapidsV1 -> None
     Error-first callback.
   ---
   sequence(10)
