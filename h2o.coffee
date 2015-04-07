@@ -719,6 +719,30 @@ lib.connect = (host='http://localhost:54321') ->
           else
             go null, frame
 
+  ###
+  function combine
+  Creates a new vector by combining individual values and/or spans.
+  The argument `elements` can be a mixed array containing numbers and spans. Spans are indicated by two-element arrays `[start, end]`. For example, the array `[13, 17]` indicates a span of numbers from 13 to 17, inclusive.
+  ---
+  elements -> Future<RapidsV1>
+  elements go -> None
+  ---
+  elements: [Number|[Number]]
+    The values and/or spans that need to be combined.
+  go: Error RapidsV1 -> None
+    Error-first callback.
+  ---
+  combine()
+  Create a vector with the values `[4, 2, 42, 13, 14, 15, 16, 17]`.
+  ```
+  h2o.combine [4, 2, 42, [13, 17]], (error, result) ->
+    if error
+      fail
+    else
+      h2o.print result
+      h2o.print.columns result.col_names, result.head
+      pass
+  ###
 
   _combine = method (elements, go) ->
     asts = for element in elements
@@ -736,6 +760,32 @@ lib.connect = (host='http://localhost:54321') ->
     'Array': _combine
     'Array, Function': _combine
 
+  ###
+  function replicate
+  Replicate the values in a given vector, repeating as many times as is necessary to create a new vector of the given target length.
+  ---
+  sourceVector targetLength -> Future<RapidsV1>
+  sourceVector targetLength go -> None
+  ---
+  sourceVector: FrameV2
+    The source vector whose values to replicate.
+  targetLength: Number
+    The desired length of the target vector.
+  go: Error RapidsV1 -> None
+    Error-first callback.
+  ---
+  replicate(sequence(5), 15)
+  Repeat the sequence `[1, 2, 3, 4, 5]` thrice.
+  ```
+  h2o.replicate h2o.sequence(5), 15, (error, result) ->
+    if error
+      fail
+    else
+      h2o.print result
+      h2o.print.columns result.col_names, result.head
+      h2o.removeAll ->
+        pass
+  ###
   _replicate = method (frame_, length, go) ->
     join frame_, go, (frame) ->
       op = astCall(
@@ -786,6 +836,17 @@ lib.connect = (host='http://localhost:54321') ->
   Create a vector with values from 11 to 20.
   ```
   h2o.sequence 11, 20, (error, result) ->
+    if error
+      fail
+    else
+      h2o.print.columns result.col_names, result.head
+      h2o.removeAll ->
+        pass
+  ---
+  sequence(11, 12, 0.1)
+  Create a vector with values from 11 to 12, step by 0.1.
+  ```
+  h2o.sequence 11, 12, 0.1, (error, result) ->
     if error
       fail
     else
