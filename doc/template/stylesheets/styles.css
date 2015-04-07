@@ -1,10 +1,13 @@
-@import url(https://fonts.googleapis.com/css?family=Lato:300italic,700italic,300,700);
+@import url(https://fonts.googleapis.com/css?family=Lato:300italic,700italic,300,700|Source+Code+Pro:400,600);
 
 body {
-  padding:50px;
   font:14px/1.5 Lato, "Helvetica Neue", Helvetica, Arial, sans-serif;
   color:#777;
   font-weight:300;
+  background: #EAEAEA;
+  margin: 0;
+  background-image:url(swirl.png);
+  background-attachment:fixed;
 }
 
 h1, h2, h3, h4, h5, h6 {
@@ -45,11 +48,6 @@ a small {
   display:block;
 }
 
-.wrapper {
-  width:860px;
-  margin:0 auto;
-}
-
 blockquote {
   border-left:1px solid #e5e5e5;
   margin:0;
@@ -58,7 +56,7 @@ blockquote {
 }
 
 code, pre {
-  font-family:Monaco, Bitstream Vera Sans Mono, Lucida Console, Terminal;
+  font-family:"Source Code Pro", Monaco, "Bitstream Vera Sans Mono", "Lucida Console", Terminal;
   color:#333;
   font-size:12px;
 }
@@ -95,33 +93,10 @@ img {
   max-width:100%;
 }
 
-header {
-  width:270px;
-  float:left;
-  position:fixed;
-}
-
-header ul {
-  list-style:none;
-  padding:0;
-}
-
-header ul a {
-  font-size:11px;
-  color:#999;
-}
-
 strong {
   color:#222;
   font-weight:700;
 }
-
-section {
-  width:500px;
-  float:right;
-  padding-bottom:50px;
-}
-
 small {
   font-size:11px;
 }
@@ -133,46 +108,56 @@ hr {
   margin:0 0 20px;
 }
 
-footer {
-  width:270px;
-  float:left;
+.sidebar {
   position:fixed;
-  bottom:50px;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 230px;
+  overflow: auto;
+  padding: 25px;
+  background: #272b2d;
+  color: #999;
+  box-sizing: border-box;
+}
+
+.sidebar h1 {
+  color: #fef486;
+  font-weight:normal;
+  font-size:35px;
+  margin:20px 0;
+}
+
+.sidebar ul {
+  list-style:none;
+  padding:0;
+}
+
+.sidebar ul a {
+  color:#999;
+}
+
+.content {
+  margin-left: 230px;
+  width: 600px;
+  padding: 50px;
+  background: white;
+  box-sizing: border-box;
+  box-shadow: 5px 0px 20px rgba(0,0,0,0.1);
+}
+
+.right {
+  text-align:right;
 }
 
 @media print, screen and (max-width: 960px) {
-  
-  div.wrapper {
-    width:auto;
-    margin:0;
-  }
-  
-  header, section, footer {
-    float:none;
+  .sidebar, .content {
     position:static;
     width:auto;
+    margin:auto;
+    padding:50px;
   }
-  
-  header {
-    padding-right:320px;
-  }
-  
-  section {
-    border:1px solid #e5e5e5;
-    border-width:1px 0;
-    padding:20px 0;
-    margin:0 0 20px;
-  }
-  
-  header a small {
-    display:inline;
-  }
-  
-  header ul {
-    position:absolute;
-    right:50px;
-    top:52px;
-  }
+
 }
 
 @media print, screen and (max-width: 720px) {
@@ -180,12 +165,8 @@ footer {
     word-wrap:break-word;
   }
   
-  header {
+  .sidebar, .content {
     padding:0;
-  }
-  
-  header ul, header p.view {
-    position:static;
   }
   
   pre, code {
@@ -198,9 +179,6 @@ footer {
     padding:15px;
   }
   
-  header ul {
-    display:none;
-  }
 }
 
 @media print {
