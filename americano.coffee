@@ -642,14 +642,215 @@ ComprehensionIf = 'ComprehensionIf'
 Identifier = 'Identifier'
 Literal = 'Literal'
 
+###
+
+Laundry list
+============================
+
+Unary infix ops
+---------------
+ASTNot
+
+Binary infix ops
+---------------
+ASTPlus
+ASTSub
+ASTMul
+TODO ASTMMult
+ASTDiv
+TODO ASTIntDiv
+ASTPow
+ASTPow2
+ASTMod
+ASTAND
+ASTOR
+ASTLT
+ASTLE
+ASTGT
+ASTGE
+ASTEQ
+ASTNE
+ASTLA
+ASTLO
+
+Unary prefix ops
+---------------
+ASTIsNA 
+TODO ASTNrow (nrow frame)
+TODO ASTNcol (ncol frame)
+TODO ASTLength (length frame)
+ASTAbs
+ASTSgn
+ASTSqrt
+ASTCeil
+ASTFlr
+ASTLog
+ASTLog10
+ASTLog2
+ASTLog1p
+ASTExp
+ASTExpm1
+ASTGamma
+ASTLGamma
+ASTDiGamma
+ASTTriGamma
+TODO ASTScale # scale(x, center = TRUE, scale = TRUE)
+ASTCharacter
+ASTFactor (as.factor vector)
+ASTAsNumeric
+TODO ASTIsFactor (is.factor vector)
+TODO ASTAnyFactor// For Runit testing
+TODO ASTCanBeCoercedToLogical
+TODO ASTAnyNA (any.na frame)
+ASTRound
+ASTSignif
+ASTTrun
+
+TODO ASTTranspose
+
+Trigonometric functions
+---------------
+ASTCos
+ASTSin
+ASTTan
+ASTACos
+ASTASin
+ASTATan
+ASTCosh
+ASTSinh
+ASTTanh
+ASTACosh
+ASTASinh
+ASTATanh
+TODO ASTCosPi
+TODO ASTSinPi
+TODO ASTTanPi
+
+More generic reducers
+---------------
+TODO ASTMin
+TODO ASTMax
+TODO ASTSum
+TODO ASTSdev
+TODO ASTVar
+TODO ASTMean
+TODO ASTMedian
+
+Misc
+---------------
+TODO ASTSetLevel
+TODO ASTMatch
+TODO ASTRename
+ASTSeq
+ASTSeqLen
+ASTRepLen
+TODO ASTQtile
+ASTCbind
+ASTRbind
+TODO ASTTable
+TODO ASTIfElse
+TODO ASTApply
+TODO ASTSApply
+TODO ASTddply
+TODO ASTMerge
+TODO ASTGroupBy
+TODO ASTXorSum
+ASTRunif
+TODO ASTCut
+TODO ASTLs
+ASTSetColNames
+
+Date
+---------------
+ASTasDate
+
+TODO ASTCat
+
+Time extractions, to and from msec since the Unix Epoch
+---------------
+ASTYear
+ASTMonth
+ASTDay
+ASTDayOfWeek
+ASTHour
+ASTMinute
+ASTSecond
+ASTMillis
+ASTMktime
+
+TODO ASTFoldCombine
+TODO COp
+TODO ROp
+TODO O
+###
 
 
 #TODO need type attributes scalar -> scalar; vector -> scalar; etc.
 Funcs =
+
+  # Javascript Math.*
+  abs: 'abs'
+  acos: 'acos'
+  asin: 'asin'
+  atan: 'atan'
+  # atan2: ''
+  ceil: 'ceiling'
+  cos: 'cos'
+  exp: 'exp'
+  floor: 'floor'
+  log: 'log'
+  log2 : 'log2'
+  max: ''
+  min: ''
+  pow: '^'
+  random: 'h2o.runif'
+  round: 'round' # round(num, digits)
+  sin: 'sin'
+  sqrt: 'sqrt'
+  tan: 'tan'
+
+  # Javascript Math.* (Experimental / ES6 Harmony)
+  acosh : 'acosh'
+  asinh : 'asinh'
+  atanh : 'atanh'
+  # cbrt : ''
+  # clz32 : ''
+  cosh : 'cosh'
+  expm1 : 'expm1'
+  # fround : ''
+  # hypot : ''
+  # imul : ''
+  log10 : 'log10'
+  log1p : 'log1p'
+  sign : 'sign' # Returns the signum function of the argument; zero if the argument is zero, 1.0 if the argument is greater than zero, -1.0 if the argument is less than zero.
+  sinh : 'sinh'
+  tanh : 'tanh'
+  trunc : 'trunc'
+
+  # Other Math
+  signif: 'signif' # signif(num, digits)
+  gamma: 'gamma'
+  logGamma: 'lgamma'
+  digamma: 'digamma'
+  trigamma: 'trigamma'
+
   toDate: 'as.Date'
   toString: 'as.character'
   toNumber: 'as.numeric'
-  random: 'h2o.runif'
+  toFactor: 'as.factor'
+  isNA: 'is.na'
+
+  # Date functions
+  getFullYear: 'year'
+  getDate: 'day'
+  getHours: 'hour'
+  getMinutes: 'minute'
+  getSeconds: 'second'
+  getMilliseconds: 'millis'
+  getMonth: 'month'
+  getDay: 'dayOfWeek'
+  time: 'mktime'
+
 
 Asts =
   BinaryExpression: (operator, left, right) ->
