@@ -1043,7 +1043,8 @@ lib.connect = (host='http://localhost:54321') ->
       fail
     else
       h2o.print.columns result.col_names, result.head
-      pass
+      h2o.removeAll ->
+        pass
   ###
   toFactor = method (vector_, go) ->
     join vector_, go, (vector) ->
@@ -1053,6 +1054,101 @@ lib.connect = (host='http://localhost:54321') ->
       )
       evaluate (astPut uuid(), op), go
 
+  ###
+  function toDate
+  Create a date vector from a factor or a string vector.
+  ---
+  vector pattern -> Future<RapidsV1>
+  vector pattern go -> None
+  ---
+  vector: Vector
+    The source vector.
+  pattern: String
+    The pattern to use for parsing dates. The pattern syntax is [documented here](http://www.joda.org/joda-time/apidocs/org/joda/time/format/DateTimeFormat.html).
+  go: Error RapidsV1 -> None
+    Error-first callback.
+  ---
+  toDate()
+  Create a date vector from a factor.
+  ```
+  h2o.toDate h2o.toFactor(h2o.replicate(h2o.combine([20101210,20101210]), 100)), "yyyymmdd", (error, result) ->
+    if error
+      fail
+    else
+      h2o.print.columns result.col_names, result.head
+      h2o.removeAll ->
+        pass
+  ###
+  toDate = method (vector_, pattern, go) ->
+    join vector_, go, (vector) ->
+      op = astCall(
+        'as.Date' #TODO
+        astRead keyOf vector
+        astString pattern
+      )
+      evaluate (astPut uuid(), op), go
+
+  ###
+  function toString
+  Create a string vector from a factor.
+  ---
+  vector -> Future<RapidsV1>
+  vector go -> None
+  ---
+  vector: Vector
+    The source vector.
+  go: Error RapidsV1 -> None
+    Error-first callback.
+  ---
+  toString()
+  Create a string vector from a factor.
+  ```
+  h2o.toString h2o.toFactor(h2o.sequence(100)), (error, result) ->
+    if error
+      fail
+    else
+      h2o.print.columns result.col_names, result.head
+      h2o.removeAll ->
+        pass
+  ###
+  toString = method (vector_, go) ->
+    join vector_, go, (vector) ->
+      op = astCall(
+        'as.character'
+        astRead keyOf vector
+      )
+      evaluate (astPut uuid(), op), go
+
+  ###
+  function toNumeric
+  Create a numeric vector from a non-numeric vector.
+  ---
+  vector -> Future<RapidsV1>
+  vector go -> None
+  ---
+  vector: Vector
+    The source vector.
+  go: Error RapidsV1 -> None
+    Error-first callback.
+  ---
+  toNumeric()
+  Create a numeric vector from a factor.
+  ```
+  h2o.toNumeric h2o.toFactor(h2o.sequence(100)), (error, result) ->
+    if error
+      fail
+    else
+      h2o.print.columns result.col_names, result.head
+      h2o.removeAll ->
+        pass
+  ###
+  toNumeric = method (vector_, go) ->
+    join vector_, go, (vector) ->
+      op = astCall(
+        'as.numeric'
+        astRead keyOf vector
+      )
+      evaluate (astPut uuid(), op), go
 
   # Files
   importFile: importFile
@@ -1119,7 +1215,12 @@ lib.connect = (host='http://localhost:54321') ->
   sequence: sequence
   replicate: replicate
   combine: combine
+
+  # Coercion
   toFactor: toFactor
+  toDate: toDate
+  toString: toString
+  toNumeric: toNumeric
 
   # Types
   error: H2OError

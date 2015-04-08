@@ -834,9 +834,6 @@ Funcs =
   digamma: 'digamma'
   trigamma: 'trigamma'
 
-  toDate: 'as.Date' #TODO
-  toString: 'as.character' #TODO
-  toNumber: 'as.numeric' #TODO
   isNaN: 'is.na' # H2O does not differentiate between NA and NaN
 
   # Date functions
@@ -849,7 +846,6 @@ Funcs =
   getMonth: 'month'
   getDay: 'dayOfWeek'
   createDate: 'mktime'
-
 
 Asts =
   BinaryExpression: (operator, left, right) ->
