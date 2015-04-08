@@ -1046,6 +1046,7 @@ lib.connect = (host='http://localhost:54321') ->
       h2o.removeAll ->
         pass
   ###
+  #TODO validation
   toFactor = method (vector_, go) ->
     join vector_, go, (vector) ->
       op = astCall(
@@ -1079,6 +1080,7 @@ lib.connect = (host='http://localhost:54321') ->
       h2o.removeAll ->
         pass
   ###
+  #TODO validation
   toDate = method (vector_, pattern, go) ->
     join vector_, go, (vector) ->
       op = astCall(
@@ -1111,6 +1113,7 @@ lib.connect = (host='http://localhost:54321') ->
       h2o.removeAll ->
         pass
   ###
+  #TODO validation
   toString = method (vector_, go) ->
     join vector_, go, (vector) ->
       op = astCall(
@@ -1142,6 +1145,7 @@ lib.connect = (host='http://localhost:54321') ->
       h2o.removeAll ->
         pass
   ###
+  #TODO validation
   toNumeric = method (vector_, go) ->
     join vector_, go, (vector) ->
       op = astCall(
@@ -1149,6 +1153,76 @@ lib.connect = (host='http://localhost:54321') ->
         astRead keyOf vector
       )
       evaluate (astPut uuid(), op), go
+
+  ###
+  function multiply 
+  Matrix-multiply two numeric frames. The number of columns on the left frame must equal the number of rows in the right frame.
+  ---
+  frame1 frame2 -> Future<RapidsV1>
+  frame1 frame2 go -> None
+  ---
+  frame1: FrameV2
+    A numeric frame.  
+  frame2: FrameV2
+    A numeric frame.  
+  go: Error RapidsV1 -> None
+    Error-first callback.
+  ---
+  multiply()
+  Multiply two frames.
+  ```
+  vector = h2o.sequence 5
+  frame = h2o.bind [ vector, vector, vector, vector, vector ]
+  h2o.multiply frame, frame, (error, result) ->
+    if error
+      fail
+    else
+      h2o.print.columns result.col_names, result.head
+      pass
+  ###
+  multiply = method (frame1_, frame2_, go) ->
+    join frame1_, frame2_, go, (frame1, frame2) ->
+      evaluate(
+        astPut uuid(), astCall(
+          'x'
+          astRead keyOf frame1
+          astRead keyOf frame2
+        )
+        go
+      )
+  ###
+  function transpose
+  Transpose a numeric frame.
+  ---
+  frame -> Future<RapidsV1>
+  frame go -> None
+  ---
+  frame: FrameV2
+    A numeric frame.
+  go: Error RapidsV1 -> None
+    Error-first callback.
+  ---
+  transpose()
+  Transpose a frame.
+  ```
+  vector = h2o.sequence 5
+  frame = h2o.bind [ vector, vector, vector, vector, vector ]
+  h2o.transpose frame, (error, result) ->
+    if error
+      fail
+    else
+      h2o.print.columns result.col_names, result.head
+      pass
+  ###
+  transpose = method (frame_, go) ->
+    join frame_, go, (frame) ->
+      evaluate(
+        astPut uuid(), astCall(
+          't'
+          astRead keyOf frame
+        )
+        go
+      )
 
   # Files
   importFile: importFile
@@ -1215,6 +1289,8 @@ lib.connect = (host='http://localhost:54321') ->
   sequence: sequence
   replicate: replicate
   combine: combine
+  multiply: multiply
+  transpose: transpose
 
   # Coercion
   toFactor: toFactor

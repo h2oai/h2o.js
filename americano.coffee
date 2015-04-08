@@ -656,7 +656,7 @@ Binary infix ops
 ASTPlus
 ASTSub
 ASTMul
-TODO ASTMMult
+ASTMMult
 ASTDiv
 TODO ASTIntDiv
 ASTPow
@@ -698,15 +698,15 @@ TODO ASTScale # scale(x, center = TRUE, scale = TRUE)
 ASTCharacter
 ASTFactor (as.factor vector)
 ASTAsNumeric
-TODO ASTIsFactor (is.factor vector)
-TODO ASTAnyFactor// For Runit testing
-TODO ASTCanBeCoercedToLogical
-TODO ASTAnyNA (any.na frame)
+ASTIsFactor (is.factor vector)
+ASTAnyFactor// For Runit testing
+ASTCanBeCoercedToLogical
+ASTAnyNA (any.na frame)
 ASTRound
 ASTSignif
 ASTTrun
 
-TODO ASTTranspose
+ASTTranspose
 
 Trigonometric functions
 ---------------
