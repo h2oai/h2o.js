@@ -665,6 +665,36 @@ lib.connect = (host='http://localhost:54321') ->
         catch error
           go error
 
+  ###
+  function slice
+  Create a new frame from a portion of an existing frame.
+  ---
+  frame begin end -> Future<RapidsV1>
+  frame begin end go -> None
+  ---
+  frame: FrameV2
+    The source frame.
+  begin: Number
+    Zero-based index at which to begin extraction.
+  end: Number
+    Zero-based index at which to end extraction. slice extracts up to but not including end.
+  go: Error RapidsV1 -> None
+    Error-first callback.
+  ---
+  slice(frame, 10, 20)
+  Create a frame and slice a portion.
+  ```
+  vector1 = h2o.sequence 100
+  vector2 = h2o.sequence 101, 200
+  frame1 = h2o.bind [ vector1, vector2 ]
+  h2o.slice frame1, 10, 20, (error, result) ->
+    if error
+      fail
+    else
+      h2o.print.columns result.col_names, result.head
+      h2o.removeAll ->
+        pass
+  ###
   sliceFrame = method (frame_, begin, end, go) ->
     # TODO validate begin/end
     # TODO use resolve()
@@ -790,12 +820,12 @@ lib.connect = (host='http://localhost:54321') ->
   odd = h2o.combine [ 1, 3, 5, 7, 9 ]
   even = h2o.combine [ 2, 4, 5, 8, 10 ]
   prime = h2o.combine [ 2, 3, 5, 7, 11 ]
-  fibonacci = h2o.combine [ 0, 1, 1, 2, 3 ]
 
   frame1 = h2o.bind [ odd, even ]
-  frame2 = h2o.bind [ prime, fibonacci ]
+  frame2 = h2o.bind [ prime, even ]
+  frame3 = h2o.bind [ odd, prime ]
 
-  h2o.concat [ frame1, frame2 ], (error, result) ->
+  h2o.concat [ frame1, frame2, frame3 ], (error, result) ->
     if error
       fail
     else
