@@ -764,7 +764,7 @@ Date
 ---------------
 ASTasDate
 
-TODO ASTCat
+ASTCat
 
 Time extractions, to and from msec since the Unix Epoch
 ---------------
@@ -800,8 +800,8 @@ Funcs =
   floor: 'floor'
   log: 'log'
   log2 : 'log2'
-  max: ''
-  min: ''
+  # max: ''
+  # min: ''
   pow: '^'
   random: 'h2o.runif'
   round: 'round' # round(num, digits)
@@ -834,11 +834,10 @@ Funcs =
   digamma: 'digamma'
   trigamma: 'trigamma'
 
-  toDate: 'as.Date'
-  toString: 'as.character'
-  toNumber: 'as.numeric'
-  toFactor: 'as.factor'
-  isNA: 'is.na'
+  toDate: 'as.Date' #TODO
+  toString: 'as.character' #TODO
+  toNumber: 'as.numeric' #TODO
+  isNaN: 'is.na' # H2O does not differentiate between NA and NaN
 
   # Date functions
   getFullYear: 'year'
@@ -849,7 +848,7 @@ Funcs =
   getMilliseconds: 'millis'
   getMonth: 'month'
   getDay: 'dayOfWeek'
-  time: 'mktime'
+  createDate: 'mktime'
 
 
 Asts =

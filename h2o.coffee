@@ -104,6 +104,7 @@ connect = (host) ->
     opts[formAttribute] = formData if formAttribute
 
     console.log "#{opts.method} #{opts.url}"
+    # dump opts
 
     _request opts, (error, response, body) ->
       if not error and response.statusCode is 200
@@ -883,7 +884,8 @@ lib.connect = (host='http://localhost:54321') ->
     else
       h2o.print result
       h2o.print.columns result.col_names, result.head
-      pass
+      h2o.removeAll ->
+        pass
   ###
 
   _combine = method (elements, go) ->
@@ -1021,6 +1023,36 @@ lib.connect = (host='http://localhost:54321') ->
     'Finite, Finite, Function': (start, end, go) -> _sequence$3 start, end, 1, go
     'Finite, Finite, Finite, Function': _sequence$3
 
+  ###
+  function toFactor
+  Encode a vector as a factor. The terms 'category', 'categorical column', 'enumerated type' are also used for factors.
+  ---
+  vector -> Future<RapidsV1>
+  vector go -> None
+  ---
+  vector: Vector
+    The vector to be encoded.
+  go: Error RapidsV1 -> None
+    Error-first callback.
+  ---
+  toFactor()
+  Create a factor from a vector.
+  ```
+  h2o.toFactor h2o.replicate(h2o.sequence(2011, 2015), 100), (error, result) ->
+    if error
+      fail
+    else
+      h2o.print.columns result.col_names, result.head
+      pass
+  ###
+  toFactor = method (vector_, go) ->
+    join vector_, go, (vector) ->
+      op = astCall(
+        'as.factor'
+        astRead keyOf vector
+      )
+      evaluate (astPut uuid(), op), go
+
 
   # Files
   importFile: importFile
@@ -1087,6 +1119,7 @@ lib.connect = (host='http://localhost:54321') ->
   sequence: sequence
   replicate: replicate
   combine: combine
+  toFactor: toFactor
 
   # Types
   error: H2OError
