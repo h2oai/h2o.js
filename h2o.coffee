@@ -164,8 +164,12 @@ type Future
 TODO: Description goes here.
 ###
 ###
+type Frame
+A reference to a `FrameV2` object. A `Frame` can be thought of as a pointer to the result of computations such as `map()`, `reduce()`, `bind()`, `concat()`, etc. You can dereference a `Frame` using the `get()` function, which will yield a `FrameV2`. A `FrameV2` can be substituted in place of a `Frame` in all functions that accept frames.
+###
+###
 type Vector
-TODO: Description goes here.
+A reference to a `ColV2` object. A `Vector` can be thought of as a pointer to the result of computations such as `map()`, `reduce()`, `bind()`, `concat()`, etc. You can dereference a `Vector` using the `get()` function, which will yield a `ColV2`. A `ColV2` can be substituted in place of a `Frame` in all functions that accept frames.
 ###
 
 lib.connect = (host='http://localhost:54321') ->
