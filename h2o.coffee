@@ -190,6 +190,54 @@ lib.connect = (host='http://localhost:54321') ->
     request 'DELETE', route, undefined, undefined, go
 
   #
+  # References
+  #
+
+  createReference = (type, resolve) ->
+    __is_reference__: yes
+    type: type
+    resolve: resolve
+
+  isReference = (obj) ->
+    if obj.__is_reference__ then yes else no
+
+  isFrame = (obj) ->
+    if (isReference obj) and obj.type is 'Frame'
+      yes
+    else if obj.__meta?.schema_type is 'Frame'
+      yes
+    else
+      no
+
+  isVector = (obj) ->
+    if (isReference obj) and obj.type is 'Vector'
+      yes
+    else if obj.__meta?.schema_type is 'Vec'
+      yes
+    else
+      no
+
+  dereference = method (obj, go) ->
+    if isReference obj
+      obj.resolve go
+    else
+      go null, obj
+
+  resolveType = (label, test) ->
+    (obj, go) ->
+      resolve obj, (error, obj) ->
+        if error
+          go error
+        else
+          if test obj
+            dereference obj, go
+          else
+            go new Error "Argument is not a #{label}."
+
+  resolveFrame = resolveType 'Frame', isFrame
+  resolveVector = resolveType 'Vector', isVector
+
+  #
   # Remote API
   #
 
