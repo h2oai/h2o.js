@@ -156,6 +156,10 @@ type Number
 A Javascript [Number](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Number)
 ###
 ###
+type Function
+A Javascript [Function](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Function)
+###
+###
 type Future
 TODO: Description goes here.
 ###
@@ -517,9 +521,10 @@ lib.connect = (host='http://localhost:54321') ->
   # Private
   #
 
-  evaluate = method (ast, go) ->
-    console.log ast
-    post '/1/Rapids.json', { ast: ast }, (error, result) ->
+  evaluate = (form, go) ->
+    console.log form.ast
+    console.log form.funs if form.funs
+    post '/1/Rapids.json', form, (error, result) ->
       if error
         go error
       else
@@ -528,6 +533,12 @@ lib.connect = (host='http://localhost:54321') ->
           go new Error result.error
         else
           go null, result
+
+  applyExpr = method (funs, ast, go) ->
+    evaluate { funs: (encodeArray funs), ast: ast }, go
+
+  callExpr = method (ast, go) ->
+    evaluate { ast: ast }, go
 
   getSchemas = method (go) ->
     get '/1/Metadata/schemas.json', unwrap go, (result) -> result.schemas
@@ -611,6 +622,27 @@ lib.connect = (host='http://localhost:54321') ->
     #TODO end - 1?
     astCall '[', (astRead key), (astList [ astSpan begin, end ]), astNull()
 
+  astDef = (key, params, op) ->
+    astCall(
+      'def'
+      key
+      astList params
+      op
+    )
+
+  __functionCache = {}
+  astFunc = (func) ->
+    if cached = __functionCache[ source = func.toString() ]
+      name: cached.name
+    else
+      name = 'anon' + uuid()
+      params = ['z']
+      #TODO make transpiler accept strings
+      def = astDef name, params, transpiler.map params, func
+      __functionCache[ source ] =
+        name: name
+        ast: def
+
   selectVector = method (frame, label, go) ->
     resolve frame, (error, frame) ->
       if error
@@ -639,7 +671,7 @@ lib.connect = (host='http://localhost:54321') ->
         vectorKeys = vectors.map keyOf
         try
           op = transpiler.map vectorKeys, func
-          evaluate (astPut uuid(), op), (error, vector) ->
+          callExpr (astPut uuid(), op), (error, vector) ->
             if error
               go error
             else
@@ -647,6 +679,55 @@ lib.connect = (host='http://localhost:54321') ->
         catch error
           console.log func.toString()
           go error
+
+  ###
+  function apply
+  Apply a function to a frame, column-wise.
+  ---
+  frame func -> Future<RapidsV1>
+  vector func -> Future<RapidsV1>
+  frame func go -> None
+  vector func go -> None
+  ---
+  frame: FrameV2
+    The source frame.
+  vector: Vector
+    The source vector.
+  func: Function
+    The function to apply to the given frame or vector.
+  go: Error RapidsV1 -> None
+    Error-first callback.
+  ---
+  apply()
+  Square all numbers in all vectors in a frame.
+  ```
+  vector = h2o.sequence 5
+  frame = h2o.bind [ vector, vector, vector, vector, vector ]
+  h2o.apply frame, ((a) -> (a * a)), (error, result) ->
+    if error
+      fail
+    else
+      h2o.dump result
+      pass
+  ###
+
+  applyToFrame = method (arg, func, go) ->
+    join arg, go, (frame) ->
+      def = astFunc func
+      op = astPut(
+        uuid()
+        astCall(
+          'apply'  
+          astRead keyOf frame
+          astNumber 1
+          astRead def.name
+        )
+      )
+
+      if def.ast
+        applyExpr [ def.ast ], op, go
+      else
+        callExpr op, go
 
   filterFrame = method (frame_, arg, func, go) ->
     vectors_ = if _.isArray arg then arg else [ arg ]
@@ -658,7 +739,7 @@ lib.connect = (host='http://localhost:54321') ->
         vectorKeys = vectors.map keyOf
         try
           op = transpiler.map vectorKeys, func
-          evaluate (astPut uuid(), astFilter sourceKey, op), (error, frame) ->
+          callExpr (astPut uuid(), astFilter sourceKey, op), (error, frame) ->
             if error
               go error
             else
@@ -704,7 +785,7 @@ lib.connect = (host='http://localhost:54321') ->
         go error
       else
         sourceKey = frame.key.name
-        evaluate (astPut uuid(), astSlice sourceKey, begin, end - 1), (error, frame) ->
+        callExpr (astPut uuid(), astSlice sourceKey, begin, end - 1), (error, frame) ->
           if error
             go error
           else
@@ -742,7 +823,7 @@ lib.connect = (host='http://localhost:54321') ->
         go error
       else
         vectorKeys = vectors.map keyOf
-        evaluate (astPut targetKey, astBind vectorKeys), (error, frame) ->
+        callExpr (astPut targetKey, astBind vectorKeys), (error, frame) ->
           if error
             go error
           else
@@ -797,7 +878,7 @@ lib.connect = (host='http://localhost:54321') ->
       if error
         go error
       else
-        evaluate (astColNames frame.key.name, columnNames), (error, frame) ->
+        callExpr (astColNames frame.key.name, columnNames), (error, frame) ->
           if error
             go error
           else
@@ -856,7 +937,7 @@ lib.connect = (host='http://localhost:54321') ->
         go error
       else
         keys = frames.map (frame) -> frame.key.name
-        evaluate (astConcat keys), (error, frame) ->
+        callExpr (astConcat keys), (error, frame) ->
           if error
             go error
           else
@@ -898,7 +979,7 @@ lib.connect = (host='http://localhost:54321') ->
       else
         throw new Error "Cannot combine element [#{element}]"
 
-    evaluate (astPut uuid(), astCall 'c', astList asts), go
+    callExpr (astPut uuid(), astCall 'c', astList asts), go
 
   combine = dispatch
     'Array': _combine
@@ -937,7 +1018,7 @@ lib.connect = (host='http://localhost:54321') ->
         astRead keyOf frame
         astNumber length
       )
-      evaluate (astPut uuid(), op), go
+      callExpr (astPut uuid(), op), go
 
   replicate = dispatch
     'Future, Finite': _replicate
@@ -1006,14 +1087,14 @@ lib.connect = (host='http://localhost:54321') ->
       astNumber end
       astNumber step
     )
-    evaluate (astPut uuid(), op), go
+    callExpr (astPut uuid(), op), go
 
   _sequence$1 = method (end, go) ->
     op = astCall(
       'seq_len'
       astNumber end
     )
-    evaluate (astPut uuid(), op), go
+    callExpr (astPut uuid(), op), go
 
   sequence = dispatch
     'Finite': _sequence$1
@@ -1053,7 +1134,7 @@ lib.connect = (host='http://localhost:54321') ->
         'as.factor'
         astRead keyOf vector
       )
-      evaluate (astPut uuid(), op), go
+      callExpr (astPut uuid(), op), go
 
   ###
   function toDate
@@ -1088,7 +1169,7 @@ lib.connect = (host='http://localhost:54321') ->
         astRead keyOf vector
         astString pattern
       )
-      evaluate (astPut uuid(), op), go
+      callExpr (astPut uuid(), op), go
 
   ###
   function toString
@@ -1120,7 +1201,7 @@ lib.connect = (host='http://localhost:54321') ->
         'as.character'
         astRead keyOf vector
       )
-      evaluate (astPut uuid(), op), go
+      callExpr (astPut uuid(), op), go
 
   ###
   function toNumeric
@@ -1152,7 +1233,7 @@ lib.connect = (host='http://localhost:54321') ->
         'as.numeric'
         astRead keyOf vector
       )
-      evaluate (astPut uuid(), op), go
+      callExpr (astPut uuid(), op), go
 
   ###
   function multiply 
@@ -1182,7 +1263,7 @@ lib.connect = (host='http://localhost:54321') ->
   ###
   multiply = method (frame1_, frame2_, go) ->
     join frame1_, frame2_, go, (frame1, frame2) ->
-      evaluate(
+      callExpr(
         astPut uuid(), astCall(
           'x'
           astRead keyOf frame1
@@ -1216,7 +1297,7 @@ lib.connect = (host='http://localhost:54321') ->
   ###
   transpose = method (frame_, go) ->
     join frame_, go, (frame) ->
-      evaluate(
+      callExpr(
         astPut uuid(), astCall(
           't'
           astRead keyOf frame
@@ -1282,6 +1363,7 @@ lib.connect = (host='http://localhost:54321') ->
   bind: bindVectors
   select: selectVector
   map: mapVectors
+  apply: applyToFrame
   filter: filterFrame
   slice: sliceFrame
   concat: concatFrames

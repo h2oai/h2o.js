@@ -722,24 +722,24 @@ ASTTanh
 ASTACosh
 ASTASinh
 ASTATanh
-TODO ASTCosPi
-TODO ASTSinPi
-TODO ASTTanPi
+ASTCosPi
+ASTSinPi
+ASTTanPi
 
 More generic reducers
 ---------------
-TODO ASTMin
-TODO ASTMax
-TODO ASTSum
-TODO ASTSdev
-TODO ASTVar
-TODO ASTMean
-TODO ASTMedian
+ASTMin
+ASTMax
+ASTSum
+ASTSdev
+ASTVar
+ASTMean
+ASTMedian
 
 Misc
 ---------------
 TODO ASTSetLevel
-TODO ASTMatch
+TODO ASTMatch match(x, y): search for elements of x in y. returns 1-based indices.
 TODO ASTRename
 ASTSeq
 ASTSeqLen
@@ -788,7 +788,7 @@ TODO O
 #TODO need type attributes scalar -> scalar; vector -> scalar; etc.
 Funcs =
 
-  # Javascript Math.*
+  # Javascript Math.* scalar
   abs: 'abs'
   acos: 'acos'
   asin: 'asin'
@@ -800,8 +800,6 @@ Funcs =
   floor: 'floor'
   log: 'log'
   log2 : 'log2'
-  # max: ''
-  # min: ''
   pow: '^'
   random: 'h2o.runif'
   round: 'round' # round(num, digits)
@@ -809,7 +807,7 @@ Funcs =
   sqrt: 'sqrt'
   tan: 'tan'
 
-  # Javascript Math.* (Experimental / ES6 Harmony)
+  # Javascript Math.* scalar (Experimental / ES6 Harmony)
   acosh : 'acosh'
   asinh : 'asinh'
   atanh : 'atanh'
@@ -834,18 +832,27 @@ Funcs =
   digamma: 'digamma'
   trigamma: 'trigamma'
 
-  isNaN: 'is.na' # H2O does not differentiate between NA and NaN
+  # Computations / Descriptive Statistics
+  max: 'max'
+  min: 'min'
+  sum: 'sum'
+  std: 'sd'
+  mean: 'mean'
+  median: 'median'
+  variance: 'var'
 
   # Date functions
-  getFullYear: 'year'
-  getDate: 'day'
-  getHours: 'hour'
-  getMinutes: 'minute'
-  getSeconds: 'second'
-  getMilliseconds: 'millis'
-  getMonth: 'month'
-  getDay: 'dayOfWeek'
-  createDate: 'mktime'
+  year: 'year'
+  day: 'day'
+  hours: 'hour'
+  minutes: 'minute'
+  seconds: 'second'
+  milliseconds: 'millis'
+  month: 'month'
+  weekday: 'dayOfWeek'
+  date: 'mktime'
+
+  isNaN: 'is.na' # H2O does not differentiate between NA and NaN
 
 Asts =
   BinaryExpression: (operator, left, right) ->
