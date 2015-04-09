@@ -614,7 +614,7 @@ lib.connect = (host='http://localhost:54321') ->
     post "/2/Shutdown.json", {}, go
 
   #
-  # Data Munging
+  # Expression-building
   #
 
   whitespace = /\s+/
@@ -695,12 +695,62 @@ lib.connect = (host='http://localhost:54321') ->
         name: name
         ast: def
 
+
+  #
+  # Data munging
+  #
+
+  ###
+  function select
+  Get a reference to a vector in a frame by label or index.
+  ---
+  frame label -> Future<Vector>
+  frame index -> Future<Vector>
+  frame label go -> None
+  frame index go -> None
+  ---
+  frame: Frame
+    The source frame.
+  label: String
+    The vector's label (equivalent to the column name).
+  index: Number
+    The zero-based index of the vector.
+  go: Error Vector -> None
+    Error-first callback.
+  ---
+  select(frame, label)
+  Select a vector using its label.
+  ```
+  airlines = h2o.importFrame
+    path: '~/airlines/AirlinesTrain.csv.zip'
+  depTime = h2o.select airlines, 'DepTime'
+  depTime (error, result) ->
+    if error
+      fail
+    else
+      h2o.dump result
+      h2o.removeAll ->
+        pass
+  ---
+  select(frame, index)
+  Select a vector using its index in the frame.
+  ```
+  airlines = h2o.importFrame
+    path: '~/airlines/AirlinesTrain.csv.zip'
+  depTime = h2o.select airlines, 4
+  depTime (error, result) ->
+    if error
+      fail
+    else
+      h2o.removeAll ->
+        pass
+  ###
   selectVector = method (frame, label, go) ->
-    resolve frame, (error, frame) ->
+    resolveFrame frame, (error, frame) ->
       if error
         go error
       else
-        if _.isNumber label
+        if _.isFinite label
           vector = frame.columns[label]
           if vector
             go null, vector
