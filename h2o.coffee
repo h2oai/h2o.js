@@ -786,18 +786,18 @@ lib.connect = (host='http://localhost:54321') ->
   function apply
   Apply a function to a frame, column-wise.
   ---
-  frame func -> Future<RapidsV1>
-  vector func -> Future<RapidsV1>
+  frame func -> Future<Frame>
+  vector func -> Future<Vector>
   frame func go -> None
   vector func go -> None
   ---
-  frame: FrameV2
+  frame: Frame
     The source frame.
   vector: Vector
     The source vector.
   func: Function
     The function to apply to the given frame or vector.
-  go: Error RapidsV1 -> None
+  go: Error Frame|Vector -> None
     Error-first callback.
   ---
   apply()
@@ -812,14 +812,49 @@ lib.connect = (host='http://localhost:54321') ->
       h2o.dump result
       pass
   ###
-
   applyToFrame = method (arg, func, go) ->
+    _applyToFrame 1, arg, func, go
+
+  ###
+  function sapply
+  Apply a function to a frame, column-wise.
+  ---
+  frame func -> Future<Frame>
+  vector func -> Future<Vector>
+  frame func go -> None
+  vector func go -> None
+  ---
+  frame: Frame
+    The source frame.
+  vector: Vector
+    The source vector.
+  func: Function
+    The function to apply to the given frame or vector.
+  go: Error Frame|Vector -> None
+    Error-first callback.
+  ---
+  sapply()
+  Square all numbers in all vectors in a frame.
+  ```
+  vector = h2o.sequence 5
+  frame = h2o.bind [ vector, vector, vector, vector, vector ]
+  h2o.sapply frame, ((a) -> (a * a)), (error, result) ->
+    if error
+      fail
+    else
+      h2o.dump result
+      pass
+  ###
+  sapplyToFrame = method (arg, func, go) ->
+    _applyToFrame 2, arg, func, go
+
+  _applyToFrame = (margin, arg, func, go) ->
     join arg, go, (frame) ->
       def = astFunc func
       op = astPut(
         uuid()
         astCall(
-          'apply'  
+          'apply'
           astRead keyOf frame
           astNumber 1
           astRead def.name
@@ -849,20 +884,21 @@ lib.connect = (host='http://localhost:54321') ->
         catch error
           go error
 
+  #TODO include Vector in docs
   ###
   function slice
   Create a new frame from a portion of an existing frame.
   ---
-  frame begin end -> Future<RapidsV1>
+  frame begin end -> Future<Frame>
   frame begin end go -> None
   ---
-  frame: FrameV2
+  frame: Frame
     The source frame.
   begin: Number
     Zero-based index at which to begin extraction.
   end: Number
     Zero-based index at which to end extraction. slice extracts up to but not including end.
-  go: Error RapidsV1 -> None
+  go: Error Frame -> None
     Error-first callback.
   ---
   slice(frame, 10, 20)
@@ -897,12 +933,12 @@ lib.connect = (host='http://localhost:54321') ->
   function bind
   Bind multiple vectors together to form a new anonymous frame.
   ---
-  vectors -> Future<RapidsV1>
+  vectors -> Future<Frame>
   vectors go -> None
   ---
   vectors: [Vector]
     The vectors to bind together.
-  go: Error RapidsV1 -> None
+  go: Error Frame -> None
     Error-first callback.
   ---
   bind()
@@ -938,12 +974,12 @@ lib.connect = (host='http://localhost:54321') ->
   function createFrame
   Bind and name multiple vectors together to form a new named frame.
   ---
-  schema -> Future<RapidsV1>
+  schema -> Future<Frame>
   schema go -> None
   ---
   schema: Object
     An object of the form `{ name: 'Frame Name', columns: { "Column 1 Name": vector_1 , "Column 2 Name": vector_2, ... "Column N Name": vector_N } }`
-  go: Error RapidsV1 -> None
+  go: Error Frame -> None
     Error-first callback.
   ---
   createFrame()
@@ -986,16 +1022,17 @@ lib.connect = (host='http://localhost:54321') ->
           else
             go null, frame
 
+  #TODO include Vector in doc
   ###
   function concat
   Concatenate rows from multiple frames to form a new frame.
   ---
-  frames -> Future<RapidsV1>
+  frames -> Future<Frame>
   frames go -> None
   ---
-  frames: [FrameV2]
+  frames: [Frame]
     The frames to concatenate.
-  go: Error RapidsV1 -> None
+  go: Error Frame -> None
     Error-first callback.
   ---
   concat(f1, f2)
@@ -1048,14 +1085,14 @@ lib.connect = (host='http://localhost:54321') ->
   ###
   function combine
   Creates a new vector by combining individual values and/or spans.
-  The argument `elements` can be a mixed array containing numbers and spans. Spans are indicated by two-element arrays `[start, end]`. For example, the array `[13, 17]` indicates a span of numbers from 13 to 17, inclusive.
+  The argument `elements` can be a mixed array containing numbers and spans. Spans are indicated by two-element arrays of the form `[start, end]`. For example, the array `[13, 17]` indicates a span of numbers from 13 to 17, inclusive.
   ---
-  elements -> Future<RapidsV1>
+  elements -> Future<Vector>
   elements go -> None
   ---
   elements: [Number|[Number]]
     The values and/or spans that need to be combined.
-  go: Error RapidsV1 -> None
+  go: Error Vector -> None
     Error-first callback.
   ---
   combine()
@@ -1091,14 +1128,14 @@ lib.connect = (host='http://localhost:54321') ->
   function replicate
   Replicate the values in a given vector, repeating as many times as is necessary to create a new vector of the given target length.
   ---
-  sourceVector targetLength -> Future<RapidsV1>
+  sourceVector targetLength -> Future<Vector>
   sourceVector targetLength go -> None
   ---
-  sourceVector: FrameV2
+  sourceVector: Vector
     The source vector whose values to replicate.
   targetLength: Number
     The desired length of the target vector.
-  go: Error RapidsV1 -> None
+  go: Error Vector -> None
     Error-first callback.
   ---
   replicate(sequence(5), 15)
@@ -1132,9 +1169,9 @@ lib.connect = (host='http://localhost:54321') ->
   function sequence
   Generate regular sequences.
   ---
-  end -> Future<RapidsV1>
-  start end -> Future<RapidsV1>
-  start end step -> Future<RapidsV1>
+  end -> Future<Vector>
+  start end -> Future<Vector>
+  start end step -> Future<Vector>
   end go -> None
   start end go -> None
   start end step go -> None
@@ -1145,7 +1182,7 @@ lib.connect = (host='http://localhost:54321') ->
     The end value of the sequence.
   step: Number
     Increment of the sequence.
-  go: Error RapidsV1 -> None
+  go: Error Vector -> None
     Error-first callback.
   ---
   sequence(10)
@@ -1210,12 +1247,12 @@ lib.connect = (host='http://localhost:54321') ->
   function toFactor
   Encode a vector as a factor. The terms 'category', 'categorical column', 'enumerated type' are also used for factors.
   ---
-  vector -> Future<RapidsV1>
+  vector -> Future<Vector>
   vector go -> None
   ---
   vector: Vector
     The vector to be encoded.
-  go: Error RapidsV1 -> None
+  go: Error Vector -> None
     Error-first callback.
   ---
   toFactor()
@@ -1242,14 +1279,14 @@ lib.connect = (host='http://localhost:54321') ->
   function toDate
   Create a date vector from a factor or a string vector.
   ---
-  vector pattern -> Future<RapidsV1>
+  vector pattern -> Future<Vector>
   vector pattern go -> None
   ---
   vector: Vector
     The source vector.
   pattern: String
     The pattern to use for parsing dates. The pattern syntax is [documented here](http://www.joda.org/joda-time/apidocs/org/joda/time/format/DateTimeFormat.html).
-  go: Error RapidsV1 -> None
+  go: Error Vector -> None
     Error-first callback.
   ---
   toDate()
@@ -1277,12 +1314,12 @@ lib.connect = (host='http://localhost:54321') ->
   function toString
   Create a string vector from a factor.
   ---
-  vector -> Future<RapidsV1>
+  vector -> Future<Vector>
   vector go -> None
   ---
   vector: Vector
     The source vector.
-  go: Error RapidsV1 -> None
+  go: Error Vector -> None
     Error-first callback.
   ---
   toString()
@@ -1309,12 +1346,12 @@ lib.connect = (host='http://localhost:54321') ->
   function toNumeric
   Create a numeric vector from a non-numeric vector.
   ---
-  vector -> Future<RapidsV1>
+  vector -> Future<Vector>
   vector go -> None
   ---
   vector: Vector
     The source vector.
-  go: Error RapidsV1 -> None
+  go: Error Vector -> None
     Error-first callback.
   ---
   toNumeric()
@@ -1338,17 +1375,17 @@ lib.connect = (host='http://localhost:54321') ->
       callExpr (astPut uuid(), op), go
 
   ###
-  function multiply 
+  function multiply
   Matrix-multiply two numeric frames. The number of columns on the left frame must equal the number of rows in the right frame.
   ---
-  frame1 frame2 -> Future<RapidsV1>
+  frame1 frame2 -> Future<Frame>
   frame1 frame2 go -> None
   ---
-  frame1: FrameV2
-    A numeric frame.  
-  frame2: FrameV2
-    A numeric frame.  
-  go: Error RapidsV1 -> None
+  frame1: Frame
+    A numeric frame.
+  frame2: Frame
+    A numeric frame.
+  go: Error Frame -> None
     Error-first callback.
   ---
   multiply()
@@ -1377,12 +1414,12 @@ lib.connect = (host='http://localhost:54321') ->
   function transpose
   Transpose a numeric frame.
   ---
-  frame -> Future<RapidsV1>
+  frame -> Future<Frame>
   frame go -> None
   ---
-  frame: FrameV2
+  frame: Frame
     A numeric frame.
-  go: Error RapidsV1 -> None
+  go: Error Frame -> None
     Error-first callback.
   ---
   transpose()
@@ -1466,6 +1503,7 @@ lib.connect = (host='http://localhost:54321') ->
   select: selectVector
   map: mapVectors
   apply: applyToFrame
+  sapply: sapplyToFrame
   filter: filterFrame
   slice: sliceFrame
   concat: concatFrames
