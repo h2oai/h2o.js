@@ -103,6 +103,7 @@ printFunction = (func) ->
   ]
 
 termination = /^(\s+)(pass|fail)(\s*)$/gm
+tildePath = /\'~\//
 
 createRunnableExample = (title, source) ->
   code = source
@@ -111,6 +112,7 @@ createRunnableExample = (title, source) ->
         "#{prefix}t.fail(error.message)#{EOL}#{prefix}t.end()"
       else # 'pass'
         "#{prefix}t.pass('#{title}')#{EOL}#{prefix}t.end()"
+    .replace tildePath, "path.join __dirname, '../../../h2o-dev/smalldata', '"
     .split EOL
     .map (line) -> '  ' + line
     .join EOL
