@@ -667,12 +667,24 @@ lib.connect = (host='http://localhost:54321') ->
   astNull = ->
     '"null"'
 
+  _astSlice = (key, rowOp, colOp) ->
+    astCall '[', (astRead key), (rowOp ? astNull()), (colOp ? astNull())
+
   astFilter = (key, op) ->
-    astCall '[', (astRead key), op, astNull()
+    # astCall '[', (astRead key), op, astNull()
+    _astSlice key, op, null
+
+  astPluck = (key, index) ->
+    #TODO index - 1?
+    # ([ %frame "null" #index)
+    #astCall '[', (astRead key), astNull(), (astNumber index)
+    _astSlice key, null, astNumber index
 
   astSlice = (key, begin, end) ->
     #TODO end - 1?
-    astCall '[', (astRead key), (astList [ astSpan begin, end ]), astNull()
+    # ([ %frame {(: #begin #end)} "null")
+    # astCall '[', (astRead key), (astList [ astSpan begin, end ]), astNull()
+    _astSlice key, (astList [ astSpan begin, end ]), null
 
   astDef = (key, params, op) ->
     astCall(
