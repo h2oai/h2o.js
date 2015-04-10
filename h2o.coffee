@@ -775,7 +775,90 @@ lib.connect = (host='http://localhost:54321') ->
             go null, vector
           else
             go new Error "Vector [#{label}] not found in Frame [#{frame.key.name}]"
+  
+  ###
+  function map
+  Apply a function to each row in a frame or a set of vectors to produce a new frame or vector. The eventual result of this operation depends on what is being mapped over, and the return type of the function `func`.
 
+  - In the `(vector, func)` form, `func` is applied to each element of the source vector, producing a new vector of the same length as the source vector. `func` should be a function of the form `(scalar) -> (scalar)`.
+  - In the `(vectors, func)` form, `func` is applied to each set of elements in the source vectors, producing a new vector of the same length as the source vectors. `func` should be a function of the form `(scalars...) -> scalar`, where the number of parameters `scalars...` is the same as the number of source vectors.
+  - In the `(frame, func)` form, `func` is applied to every element of every vector in the source frame, producing a new frame of the same dimensions as the source frame. `func` should be a function of the form `(scalar) -> scalar`.
+  ---
+  vector func -> Future<Vector>
+  vectors func -> Future<Vector>
+  frame func -> Future<Frame>
+  vector func go -> None
+  vectors func go -> None
+  frame func go -> None
+  ---
+  frame: Frame
+    The frame to map over. 
+  vector: Vector
+    The vector to map over.
+  vectors: [Vector]
+    The array of vectors to map over.
+  func: Function
+    The function to call.
+  go: Error Frame|Vector -> None
+    Error-first callback.
+  ---
+  map(vector, map)
+  `(vector, ((scalar) -> scalar))`
+  ```
+  xs = h2o.sequence 5
+  squares = h2o.map xs, (a) -> a * a
+  squares (error, vector) ->
+    if error
+      fail
+    else
+      h2o.dump vector
+      pass
+  ---
+  map(vectors, map)
+  `(vectors, ((scalars...) -> scalar))`
+  ```
+  xs = h2o.sequence 10, 15 
+  ys = h2o.sequence 20, 25
+  zs = h2o.sequence 30, 35
+  sumOfSquares = h2o.map [ xs, ys, zs ], (x, y, z) ->
+    x * x + y * y + z * z
+  sumOfSquares (error, vector) ->
+    if error
+      fail
+    else
+      h2o.dump vector
+      pass
+  ---
+  map(frame, map)
+  `(frame, ((scalar) -> scalar))` 
+  ```
+  xs = h2o.sequence 10, 15 
+  ys = h2o.sequence 20, 25
+  zs = h2o.sequence 30, 35
+  frame = h2o.bind [ xs, ys, zs ]
+  squares = h2o.map frame, (a) -> a * a
+  squares (error, frame) ->
+    if error
+      fail
+    else
+      h2o.dump frame
+      pass
+  ---
+  map(frame, reduce)
+  `(frame, ((vector) -> scalar))` 
+  ```
+  xs = h2o.sequence 10, 15 
+  ys = h2o.sequence 20, 25
+  zs = h2o.sequence 30, 35
+  frame = h2o.bind [ xs, ys, zs ]
+  squares = h2o.map frame, (a) -> sum a
+  squares (error, frame) ->
+    if error
+      fail
+    else
+      h2o.dump frame
+      pass
+  ###
   mapVectors = method (arg, func, go) ->
     vectors_ = if _.isArray arg then arg else [ arg ]
     fj.join vectors_, (error, vectors) ->
