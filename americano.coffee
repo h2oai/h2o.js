@@ -789,75 +789,134 @@ TODO O
 Funcs =
 
   # Javascript Math.* scalar
-  abs: 'abs'
-  acos: 'acos'
-  asin: 'asin'
-  atan: 'atan'
-  # atan2: ''
-  ceil: 'ceiling'
-  cos: 'cos'
-  exp: 'exp'
-  floor: 'floor'
-  log: 'log'
-  log2 : 'log2'
-  pow: '^'
-  random: 'h2o.runif'
-  round: 'round' # round(num, digits)
-  sin: 'sin'
-  sqrt: 'sqrt'
-  tan: 'tan'
+  abs:
+    name: 'abs'
+  acos:
+    name: 'acos'
+  asin:
+    name: 'asin'
+  atan:
+    name: 'atan'
+# atan2:
+#   name: ''
+  ceil:
+    name: 'ceiling'
+  cos:
+    name: 'cos'
+  exp:
+    name: 'exp'
+  floor:
+    name: 'floor'
+  log:
+    name: 'log'
+  log2 :
+    name: 'log2'
+  pow:
+    name: '^'
+  random:
+    name: 'h2o.runif'
+  round:
+    name: 'round' # round(num, digits)
+  sin:
+    name: 'sin'
+  sqrt:
+    name: 'sqrt'
+  tan:
+    name: 'tan'
 
   # Javascript Math.* scalar (Experimental / ES6 Harmony)
-  acosh : 'acosh'
-  asinh : 'asinh'
-  atanh : 'atanh'
-  # cbrt : ''
-  # clz32 : ''
-  cosh : 'cosh'
-  expm1 : 'expm1'
-  # fround : ''
-  # hypot : ''
-  # imul : ''
-  log10 : 'log10'
-  log1p : 'log1p'
-  sign : 'sign' # Returns the signum function of the argument; zero if the argument is zero, 1.0 if the argument is greater than zero, -1.0 if the argument is less than zero.
-  sinh : 'sinh'
-  tanh : 'tanh'
-  trunc : 'trunc'
+  acosh :
+    name: 'acosh'
+  asinh :
+    name: 'asinh'
+  atanh :
+    name: 'atanh'
+# cbrt :
+#   name: ''
+# clz32 :
+#   name: ''
+  cosh :
+    name: 'cosh'
+  expm1 :
+    name: 'expm1'
+# fround :
+#   name: ''
+# hypot :
+#   name: ''
+# imul :
+#   name: ''
+  log10 :
+    name: 'log10'
+  log1p :
+    name: 'log1p'
+  sign :
+    name: 'sign' # Returns the signum function of the argument; zero if the argument is zero, 1.0 if the argument is greater than zero, -1.0 if the argument is less than zero.
+  sinh :
+    name: 'sinh'
+  tanh :
+    name: 'tanh'
+  trunc :
+    name: 'trunc'
 
   # Other Math
-  signif: 'signif' # signif(num, digits)
-  gamma: 'gamma'
-  logGamma: 'lgamma'
-  digamma: 'digamma'
-  trigamma: 'trigamma'
+  signif:
+    name: 'signif' # signif(num, digits)
+  gamma:
+    name: 'gamma'
+  logGamma:
+    name: 'lgamma'
+  digamma:
+    name: 'digamma'
+  trigamma:
+    name: 'trigamma'
 
   # Computations / Descriptive Statistics
-  max: 'max'
-  min: 'min'
-  sum: 'sum'
-  std: 'sd'
-  mean: 'mean'
-  median: 'median'
-  variance: 'var'
+  max:
+    name: 'max'
+  min:
+    name: 'min'
+  sum:
+    name: 'sum'
+  std:
+    name: 'sd'
+  mean:
+    name: 'mean'
+  median:
+    name: 'median'
+  variance:
+    name: 'var'
 
   # Date functions
-  year: 'year'
-  day: 'day'
-  hours: 'hour'
-  minutes: 'minute'
-  seconds: 'second'
-  milliseconds: 'millis'
-  month: 'month'
-  weekday: 'dayOfWeek'
-  date: 'mktime'
+  year:
+    name: 'year'
+  day:
+    name: 'day'
+  hours:
+    name: 'hour'
+  minutes:
+    name: 'minute'
+  seconds:
+    name: 'second'
+  milliseconds:
+    name: 'millis'
+  month:
+    name: 'month'
+  weekday:
+    name: 'dayOfWeek'
+  date:
+    name: 'mktime'
 
-  isNaN: 'is.na' # H2O does not differentiate between NA and NaN
+  isNaN:
+    name: 'is.na' # H2O does not differentiate between NA and NaN
 
-  toFactor: 'as.factor'
-  toNumber: 'as.numeric'
-  toString: 'as.character'
-  toDate: 'as.Date'
+  toFactor:
+    name: 'as.factor'
+  toNumber:
+    name: 'as.numeric'
+  toString:
+    name: 'as.character'
+  toDate:
+    name: 'as.Date'
 
 Asts =
   BinaryExpression: (operator, left, right) ->
@@ -885,8 +944,8 @@ Call = (name) ->
   (args...) ->
     Ast.CallExpression name, args
 
-Func = _.mapValues Funcs, (remoteName, localName) ->
-  Call localName
+Func = _.mapValues Funcs, (func, localName) ->
+  Call localName 
 
 SExpr = (context) ->
   Nodes =
@@ -1018,8 +1077,8 @@ SExpr = (context) ->
       else if symbol = context.globalSymbols[node.name]
         # Replace with lookup
         "%#{symbol}"
-      else if callable = context.globalFuncs[node.name]
-        callable
+      else if func = context.globalFuncs[node.name]
+        func.name
       else
         throw new Error "Unknown #{node.type}: [#{node.name}]"
 
