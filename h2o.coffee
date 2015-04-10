@@ -966,6 +966,20 @@ lib.connect = (host='http://localhost:54321') ->
       h2o.print.columns result.col_names, result.head
       h2o.removeAll ->
         pass
+  ---
+  bind() nested
+  Create and bind three vectors into a new frame.
+  ```
+  seq1 = h2o.combine [[ 1, 10 ]]
+  seq2 = h2o.combine [[ 11, 20 ]]
+  seq3 = h2o.combine [[ 21, 30 ]]
+  h2o.bind [ h2o.bind([ seq1, seq2 ]), seq3 ], (error, result) ->
+    if error
+      fail
+    else
+      h2o.print.columns result.col_names, result.head
+      h2o.removeAll ->
+        pass
   ###
   _bindVectors = method (targetKey, vectors, go) ->
     fj.join vectors, (error, vectors) ->
