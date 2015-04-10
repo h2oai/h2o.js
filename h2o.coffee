@@ -955,7 +955,6 @@ lib.connect = (host='http://localhost:54321') ->
           astRead def.name
         )
       )
-
       if def.ast
         applyExpr [ def.ast ], op, go
       else
@@ -1190,6 +1189,22 @@ lib.connect = (host='http://localhost:54321') ->
             go error
           else
             go null, frame
+
+  # h2o.groupBy airlines, [ year, month ], [
+  #   h2o.mean delay
+  #   h2o.sum foo
+  # ]
+  # "ignore" -- count NAs, but don't include them in sums, mins, or maxss
+  # "rm"       --  do not count NAs, do not include them in sums mins maxs
+  # "all"       -- count NAs, include them in mins, maxs, means
+
+  #
+  # Needs 4 args
+  # "min" #2 "ignore" "min_col3"
+  # aggregate type, column index, na method, aggregate column name
+
+  groupBy = method (go) ->
+    go new Error 'Not implemented'
 
   ###
   function combine
@@ -1617,6 +1632,7 @@ lib.connect = (host='http://localhost:54321') ->
   slice: sliceFrame
   concat: concatFrames
   resolve: resolve
+  # groupBy: groupBy
   sequence: sequence
   replicate: replicate
   combine: combine
