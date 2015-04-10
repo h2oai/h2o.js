@@ -63,10 +63,28 @@ testCases = [
     (a) -> -a
   ]
   [
-    'Fails on unsupported unary operator'
+    'Fails on unary ~'
     null
     ['A']
     (a) -> ~a
+  ]
+  [
+    'Fails on unary typeof'
+    null
+    ['A']
+    (a) -> typeof a
+  ]
+  [
+    'Fails on unary delete'
+    null
+    ['A']
+    (a) -> delete a.foo
+  ]
+  [
+    'Fails on unary void'
+    null
+    ['A']
+    (a) -> undefined
   ]
   [
     '=='
