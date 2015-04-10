@@ -1,4 +1,7 @@
-map = [
+test = require 'tape'
+transpiler = require '../americano.js'
+
+testCases = [
   [
     'Fails when arg is not a function'
     null
@@ -199,5 +202,11 @@ map = [
   ]
 ]
 
-module.exports =
-  map: map
+test 'transpiler.map', (t) ->
+  for [ message, expected, symbols, func ] in testCases
+    if expected is null
+      t.throws (-> transpiler.map(symbols, func)), undefined, message
+    else
+      t.equal transpiler.map(symbols, func), expected, message
+
+  t.end()

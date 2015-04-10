@@ -854,6 +854,11 @@ Funcs =
 
   isNaN: 'is.na' # H2O does not differentiate between NA and NaN
 
+  toFactor: 'as.factor'
+  toNumber: 'as.numeric'
+  toString: 'as.character'
+  toDate: 'as.Date'
+
 Asts =
   BinaryExpression: (operator, left, right) ->
     operator: operator

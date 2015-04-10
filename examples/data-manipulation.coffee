@@ -23,6 +23,13 @@ flights14_zip = locate 'delays14.csv.zip'
 delays14_zip = locate 'flights14.csv.zip'
 weather14_zip = locate 'weather_delays14.csv.zip'
 
+# TODO
+# - pretty-print rows
+# - create a vector of random numbers
+# - create an enum vector with random levels
+# - create a vector of random integers from 1 - 5
+#   - convert to enum
+# - create 
 
 test 'Load frames in parallel', (t) ->
   flights = h2o.importFrame path: flights14_zip

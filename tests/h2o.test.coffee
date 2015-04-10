@@ -2,21 +2,10 @@ path = require 'path'
 test = require 'tape'
 _ = require 'lodash'
 libh2o = require '../h2o.js'
-transpiler = require '../americano.js'
-transpilerTestCases = require './americano.test.js'
 
 h2o = libh2o.connect() 
 
 dump = (a) -> console.log JSON.stringify a, null, 2
-
-test 'transpiler.map', (t) ->
-  for [ message, expected, symbols, func ] in transpilerTestCases.map
-    if expected is null
-      t.throws (-> transpiler.map(symbols, func)), undefined, message
-    else
-      t.equal transpiler.map(symbols, func), expected, message
-
-  t.end()
 
 #
 # airlines = new h2o.Frame h2o.importFrame path: path
