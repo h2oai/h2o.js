@@ -165,10 +165,52 @@ testCases = [
     (a, b) -> a % b
   ]
   [
-    'Fails on unsupported binary operators'
+    'Fails on binary <<'
+    null
+    ['A', 'B']
+    (a, b) -> a << b
+  ]
+  [
+    'Fails on binary >>'
     null
     ['A', 'B']
     (a, b) -> a >> b
+  ]
+  [
+    'Fails on binary >>>'
+    null
+    ['A', 'B']
+    (a, b) -> a >>> b
+  ]
+  [
+    'Fails on binary |'
+    null
+    ['A', 'B']
+    (a, b) -> a | b
+  ]
+  [
+    'Fails on binary ^'
+    null
+    ['A', 'B']
+    (a, b) -> a ^ b
+  ]
+  [
+    'Fails on binary &'
+    null
+    ['A', 'B']
+    (a, b) -> a & b
+  ]
+  [
+    'Fails on binary in'
+    null
+    ['A', 'B']
+    (a, b) -> a of b
+  ]
+  [
+    'Fails on binary instanceof'
+    null
+    ['A', 'B']
+    (a, b) -> a instanceof b
   ]
   [
     '&&'
