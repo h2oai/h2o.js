@@ -919,6 +919,14 @@ Funcs =
     name: 'as.Date'
 
 Asts =
+  Identifier: (name) ->
+    name: name
+
+  MemberExpression: (computed, object, property) ->
+    computed: computed
+    object: object
+    property: property
+
   BinaryExpression: (operator, left, right) ->
     operator: operator
     left: left
@@ -946,6 +954,22 @@ Call = (name) ->
 
 Func = _.mapValues Funcs, (func, localName) ->
   Call localName 
+
+sexpr_apply = (func, args) ->
+  "(#{func} #{args.join ' '})"
+
+sexpr_call = (func, args...) ->
+  sexpr_apply func, args
+
+sexpr_slice = (context, object, label) ->
+  if target = context.globalSymbols[object.name]
+    if member = target.members[label]
+      sexpr Ast.MemberExpression yes, object, Ast.Literal member.index, "#{member.index}"
+    else
+      throw "Member [#{label}] not found in object [#{object.name}]"
+  else
+    throw new Error "Object [#{object.name}] not found."
+
 
 SExpr = (context) ->
   Nodes =
@@ -996,7 +1020,7 @@ SExpr = (context) ->
             # The unary + operator converts its operand to Number type.
             sexpr Func.toNumber argument
           when '-'
-            if argument.type is Literal and _.isNumber argument.value
+            if argument.type is Literal and _.isFinite argument.value
               sexpr Ast.Literal -1, '-1'
             else
               sexpr Ast.BinaryExpression '*', argument, Ast.Literal -1, '-1'
@@ -1045,8 +1069,7 @@ SExpr = (context) ->
           '&'
         else
           throw new Error "Unsupported #{node.type} operator [#{operator}]"
-
-      "(#{op} #{sexpr left} #{sexpr right})"
+      sexpr_call op, (sexpr left), (sexpr right)
 
     ConditionalExpression: null
       # { test, consequent, alternate } = node
@@ -1056,7 +1079,28 @@ SExpr = (context) ->
     CallExpression: (node) ->
       "(#{sexpr node.callee} #{sexprs (sexpr arg for arg in node.arguments)})"
 
-    MemberExpression: null
+    MemberExpression: (node) ->
+      { computed, object, property } = node
+
+      throw new Error "Object is a [#{object.type}]. Expected #{Identifier}." unless object.type is Identifier
+
+      if computed
+        # expression
+        if property.type is Literal
+          if _.isFinite property.value
+            if property.value % 1 is 0
+              # slice column by index 
+              sexpr_call '[', (sexpr object), (sexpr Ast.Literal 'null', "'null'"), (sexpr Ast.Literal property.value, "#{property.value}")
+            else
+              throw new Error "Property accessor is not an integer: [#{property.value}]."
+          else
+            sexpr_slice context, object, property.value
+        else
+          throw new Error "Property accessor is a [#{property.type}]. Expected #{Literal}."
+      else
+        # static, replace label with index and re-enter
+        sexpr_slice context, object, property.name
+
     YieldExpression: null
     ComprehensionExpression: null
     GeneratorExpression: null
@@ -1076,7 +1120,7 @@ SExpr = (context) ->
         sexpr null
       else if symbol = context.globalSymbols[node.name]
         # Replace with lookup
-        "%#{symbol}"
+        "%#{symbol.name}"
       else if func = context.globalFuncs[node.name]
         func.name
       else
@@ -1087,7 +1131,7 @@ SExpr = (context) ->
       if value is null
         sexpr value
 
-      else if _.isNumber value
+      else if _.isFinite value
         "##{raw}"
 
       else if _.isString value
@@ -1111,6 +1155,7 @@ SExpr = (context) ->
     if handler = (if node then Nodes[node.type] else Nodes.Null)
       handler node
     else
+      dump node
       throw new Error "Unsupported operation: [#{node.type}]"
 
 walk = (ast, f) -> 
@@ -1159,7 +1204,9 @@ map = (symbols, func) ->
 
   globalSymbols = {}
   for param, paramIndex in params
-    globalSymbols[param] = symbols[paramIndex]
+    globalSymbols[param] = 
+      name: symbols[paramIndex]
+      properties: {} #TODO
 
   sexpr = SExpr
     globalSymbols: globalSymbols
@@ -1169,7 +1216,7 @@ map = (symbols, func) ->
     sexpr ast
 
   catch error
-    console.log dump ast
+    #console.log dump ast
     throw error
 
 #

@@ -260,6 +260,36 @@ testCases = [
     []
     -> false
   ]
+  [
+    'Fails on non-literal computed members'
+    null
+    ['A']
+    (a) -> a[5 + 5]
+  ]
+  [
+    'Fails on A[10.5]'
+    null
+    ['A']
+    (a) -> a[10.5]
+  ]
+  [
+    'A[10]'
+    '([ %A "null" #10)'
+    ['A']
+    (a) -> a[10]
+  ]
+  [
+    'A[10.0]'
+    '([ %A "null" #10)'
+    ['A']
+    (a) -> a[10]
+  ]
+  [
+    '(A + B)[10]'
+    null
+    ['A', 'B']
+    (a, b) -> (a + b)[10]
+  ]
 ]
 
 test 'transpiler.map', (t) ->
