@@ -246,14 +246,14 @@ lib.connect = (host='http://localhost:54321') ->
   #
 
   #createFrame = method (parameters, go) ->
-  #  post '/2/CreateFrame.json', parameters, go
+  #  post '/3/CreateFrame', parameters, go
 
   splitFrame = method (parameters, go) ->
 #     form =
 #       dataset: parameters.dataset
 #       ratios: encodeArray parameters.ratios
 #       dest_keys: encodeArray parameter.dest_keys
-    post '/2/SplitFrame.json', (encodeObject parameters), go
+    post '/3/SplitFrame', (encodeObject parameters), go
 
   ###
   function getFrames
@@ -276,25 +276,25 @@ lib.connect = (host='http://localhost:54321') ->
       pass
   ###
   getFrames = method (go) ->
-    get '/3/Frames.json', unwrap go, (result) -> patchFrames result.frames
+    get '/3/Frames', unwrap go, (result) -> patchFrames result.frames
 
   getFrame = method (key, go) ->
     return go new Error 'Parameter [key]: expected string' unless _.isString key
     return go new Error 'Parameter [key]: expected non-empty string' if key is ''
-    get "/3/Frames.json/#{enc key}", unwrap go, (result) -> _.head patchFrames result.frames
+    get "/3/Frames/#{enc key}", unwrap go, (result) -> _.head patchFrames result.frames
 
   removeFrame = method (key, go) ->
-    del "/3/Frames.json/#{enc key}", go
+    del "/3/Frames/#{enc key}", go
 
   getRDDs = method (go) ->
-    get '/3/RDDs.json', unwrap go, (result) -> result.rdds
+    get '/3/RDDs', unwrap go, (result) -> result.rdds
 
   #TODO why require a frame to get at the vec?
   getSummary = method (frame_, columnLabel, go) ->
     #TODO validation
     join frame_, go, (frame) ->
       key = keyOf frame
-      get "/3/Frames.json/#{enc key}/columns/#{enc columnLabel}/summary", unwrap go, (result) ->
+      get "/3/Frames/#{enc key}/columns/#{enc columnLabel}/summary", unwrap go, (result) ->
         _.head patchFrames result.frames
 
   ###
@@ -318,11 +318,11 @@ lib.connect = (host='http://localhost:54321') ->
       pass
   ###
   getJobs = method (go) ->
-    get '/2/Jobs.json', unwrap go, (result) ->
+    get '/3/Jobs', unwrap go, (result) ->
       result.jobs
 
   getJob = method (key, go) ->
-    get "/2/Jobs.json/#{enc key}", unwrap go, (result) ->
+    get "/3/Jobs/#{enc key}", unwrap go, (result) ->
       _.head result.jobs
 
   waitFor = method (key, go) ->
@@ -346,11 +346,11 @@ lib.connect = (host='http://localhost:54321') ->
     poll()
 
   cancelJob = method (key, go) ->
-    post "/2/Jobs.json/#{enc key}/cancel", {}, go
+    post "/3/Jobs/#{enc key}/cancel", {}, go
 
   importFile = method (parameters, go) ->
     form = path: enc parameters.path
-    get '/2/ImportFiles.json', form, go
+    get '/3/ImportFiles', form, go
 
   importFiles = method (parameters, go) ->
     (fj.seq parameters.map (parameters) -> fj.fork importFile, parameters) go
@@ -359,10 +359,10 @@ lib.connect = (host='http://localhost:54321') ->
   setupParse = method (parameters, go) ->
     form =
       source_keys: encodeArray parameters.source_keys
-    post '/2/ParseSetup.json', form, go
+    post '/3/ParseSetup', form, go
 
   parseFiles = method (parameters, go) ->
-    post '/2/Parse.json', (encodeObject parameters), go
+    post '/3/Parse', (encodeObject parameters), go
 
   # import-and-parse
   importFrame = method (parameters, go) ->
@@ -429,26 +429,26 @@ lib.connect = (host='http://localhost:54321') ->
       pass
   ###
   getModels = method (go) ->
-    get '/3/Models.json', unwrap go, (result) ->
+    get '/3/Models', unwrap go, (result) ->
       #XXX
       patchModels result.models
 
   getModel = method (key, go) ->
-    get "/3/Models.json/#{enc key}", unwrap go, (result) ->
+    get "/3/Models/#{enc key}", unwrap go, (result) ->
       #XXX
       _.head patchModels result.models
 
   removeModel = method (key, go) ->
-    del "/3/Models.json/#{enc key}", go
+    del "/3/Models/#{enc key}", go
 
   getModelBuilders = method (go) ->
-    get "/3/ModelBuilders.json", go
+    get "/3/ModelBuilders", go
 
   getModelBuilder = method (algo, go) ->
-    get "/3/ModelBuilders.json/#{algo}", go
+    get "/3/ModelBuilders/#{algo}", go
 
   requestModelInputValidation = method (algo, parameters, go) ->
-    post "/3/ModelBuilders.json/#{algo}/parameters", (encodeObject parameters), go
+    post "/3/ModelBuilders/#{algo}/parameters", (encodeObject parameters), go
 
   resolveParameters = method (parameters, go) ->
     unresolveds = []
@@ -471,7 +471,7 @@ lib.connect = (host='http://localhost:54321') ->
       go null, resolved
 
   buildModel = method (algo, parameters, go) ->
-    post "/3/ModelBuilders.json/#{algo}", (encodeObject parameters), go
+    post "/3/ModelBuilders/#{algo}", (encodeObject parameters), go
 
   createModel = method (algo, parameters, go) ->
     resolvedParameters = resolveParameters parameters
@@ -507,11 +507,11 @@ lib.connect = (host='http://localhost:54321') ->
         delete parameters.model
         delete parameters.frame
 
-        post "/3/Predictions.json/models/#{enc modelKey}/frames/#{enc frameKey}", parameters, unwrap go, (result) ->
+        post "/3/Predictions/models/#{enc modelKey}/frames/#{enc frameKey}", parameters, unwrap go, (result) ->
           _.head result.model_metrics
 
   getPrediction = method (modelKey, frameKey, go) ->
-    get "/3/ModelMetrics.json/models/#{enc modelKey}/frames/#{enc frameKey}", unwrap go, (result) ->
+    get "/3/ModelMetrics/models/#{enc modelKey}/frames/#{enc frameKey}", unwrap go, (result) ->
       _.head result.model_metrics
 
   getPredictions = method (modelKey, frameKey, _go) ->
@@ -532,42 +532,42 @@ lib.connect = (host='http://localhost:54321') ->
         _go null, (prediction for prediction in predictions when prediction)
 
     if modelKey and frameKey
-      get "/3/ModelMetrics.json/models/#{enc modelKey}/frames/#{enc frameKey}", go
+      get "/3/ModelMetrics/models/#{enc modelKey}/frames/#{enc frameKey}", go
     else if modelKey
-      get "/3/ModelMetrics.json/models/#{enc modelKey}", go
+      get "/3/ModelMetrics/models/#{enc modelKey}", go
     else if frameKey
-      get "/3/ModelMetrics.json/frames/#{enc frameKey}", go
+      get "/3/ModelMetrics/frames/#{enc frameKey}", go
     else
-      get "/3/ModelMetrics.json", go
+      get "/3/ModelMetrics", go
 
   uploadFile = method (key, path, go) ->
     formData = file: fs.createReadStream path
-    upload "/3/PostFile.json?destination_key=#{enc key}", formData, go
+    upload "/3/PostFile?destination_key=#{enc key}", formData, go
 
   #
   # Diagnostics
   #
 
   getClusterStatus = method (go) ->
-    get '/1/Cloud.json', go
+    get '/3/Cloud', go
 
   getTimeline = method (go) ->
-    get '/2/Timeline.json', go
+    get '/3/Timeline', go
 
   getStackTrace = method (go) ->
-    get '/2/JStack.json', go
+    get '/3/JStack', go
 
   getLogFile = method (nodeIndex, fileType, go) ->
-    get "/3/Logs.json/nodes/#{nodeIndex}/files/#{fileType}", go
+    get "/3/Logs/nodes/#{nodeIndex}/files/#{fileType}", go
 
   runProfiler = method (depth, go) ->
-    get "/2/Profiler.json?depth=#{depth}", go
+    get "/3/Profiler?depth=#{depth}", go
 
   runNetworkTest = method (go) ->
-    get '/2/NetworkTest.json', go
+    get '/3/NetworkTest', go
 
   about = method (go) ->
-    get '/3/About.json', go
+    get '/3/About', go
 
   #
   # Private
@@ -576,7 +576,7 @@ lib.connect = (host='http://localhost:54321') ->
   evaluate = (form, go) ->
     console.log form.ast
     console.log form.funs if form.funs
-    post '/1/Rapids.json', form, (error, result) ->
+    post '/3/Rapids', form, (error, result) ->
       if error
         go error
       else
@@ -593,25 +593,25 @@ lib.connect = (host='http://localhost:54321') ->
     evaluate { ast: ast }, go
 
   getSchemas = method (go) ->
-    get '/1/Metadata/schemas.json', unwrap go, (result) -> result.schemas
+    get '/3/Metadata/schemas', unwrap go, (result) -> result.schemas
 
   getSchema = method (name, go) ->
-    get "/1/Metadata/schemas.json/#{enc name}", unwrap go, (result) -> _.head result.schemas
+    get "/3/Metadata/schemas/#{enc name}", unwrap go, (result) -> _.head result.schemas
 
   getEndpoints = method (go) ->
-    get '/1/Metadata/endpoints.json', unwrap go, (result) -> result.routes
+    get '/3/Metadata/endpoints', unwrap go, (result) -> result.routes
 
   getEndpoint = method (index, go) ->
-    get "/1/Metadata/endpoints.json/#{index}", unwrap go, (result) -> _.head result.routes
+    get "/3/Metadata/endpoints/#{index}", unwrap go, (result) -> _.head result.routes
 
   remove = method (key, go) ->
-    del '/1/Remove.json', go
+    del "/3/DKV/#{enc key}", go
 
   removeAll = method (go) ->
-    del '/1/RemoveAll.json', go
+    del '/3/DKV', go
 
   shutdown = method (go)->
-    post "/2/Shutdown.json", {}, go
+    post "/3/Shutdown", {}, go
 
   #
   # Expression-building
