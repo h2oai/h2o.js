@@ -632,7 +632,7 @@ lib.connect = (host='http://localhost:54321') ->
     "##{number}"
 
   astWrite = (key) ->
-    if whitespace.test key then astString key else "!#{key}"
+    "!#{astString key}"
 
   astRead = (key) ->
     if whitespace.test key then astString key else "%#{key}"
