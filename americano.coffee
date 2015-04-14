@@ -961,15 +961,36 @@ sexpr_apply = (func, args) ->
 sexpr_call = (func, args...) ->
   sexpr_apply func, args
 
-sexpr_slice = (context, object, label) ->
-  if target = context.globalSymbols[object.name]
-    if member = target.members[label]
-      sexpr Ast.MemberExpression yes, object, Ast.Literal member.index, "#{member.index}"
-    else
-      throw "Member [#{label}] not found in object [#{object.name}]"
-  else
-    throw new Error "Object [#{object.name}] not found."
+sexpr_string = (value) ->
+  JSON.stringify value
 
+sexpr_number = (value) ->
+  "##{value}"
+
+sexpr_boolean = (value) ->
+  if value then "%TRUE" else "%FALSE"
+
+sexpr_null = ->
+  '"null"'
+
+sexpr_nan = ->
+  '#NaN'
+
+sexpr_lookup = (identifier) ->
+  "%#{identifier}"
+
+sexpr_strings = (strings...) ->
+  sexpr_apply 'slist', strings.map sexpr_string
+
+sexpr_numbers = (numbers...) ->
+  sexpr_apply 'dlist', numbers.map sexpr_number
+
+sexpr_span = (begin, end) ->
+  sexpr_call ':', (sexpr_number begin), (sexpr_number end)
+
+sexpr_indices = (indices...) ->
+  #TODO spans (: #from #to) are allowed
+  sexpr_apply 'llist', indices.map indices.map sexpr_number
 
 SExpr = (context) ->
   Nodes =
@@ -1014,14 +1035,14 @@ SExpr = (context) ->
       if prefix
         switch operator
           when '!'
-            "(not #{sexpr argument})"
+            sexpr_call 'not', sexpr argument
           when '+'
             # http://www.ecma-international.org/ecma-262/5.1/#sec-11.4.6
             # The unary + operator converts its operand to Number type.
             sexpr Func.toNumber argument
           when '-'
             if argument.type is Literal and _.isFinite argument.value
-              sexpr Ast.Literal -1, '-1'
+              sexpr_number -argument.value
             else
               sexpr Ast.BinaryExpression '*', argument, Ast.Literal -1, '-1'
           else
@@ -1054,7 +1075,7 @@ SExpr = (context) ->
           # '<<', '>>', '>>>', '|', '^', '&', 'in', 'instanceof', '..'
           throw new Error "Unsupported #{node.type} operator [#{operator}]"
 
-      "(#{op} #{sexpr left} #{sexpr right})"
+      sexpr_call op, (sexpr left), (sexpr right)
 
     AssignmentExpression: null
 
@@ -1069,6 +1090,7 @@ SExpr = (context) ->
           '&'
         else
           throw new Error "Unsupported #{node.type} operator [#{operator}]"
+
       sexpr_call op, (sexpr left), (sexpr right)
 
     ConditionalExpression: null
@@ -1077,7 +1099,7 @@ SExpr = (context) ->
     NewExpression: null
 
     CallExpression: (node) ->
-      "(#{sexpr node.callee} #{sexprs (sexpr arg for arg in node.arguments)})"
+      sexpr_apply (sexpr node.callee), (sexpr arg for arg in node.arguments)
 
     MemberExpression: (node) ->
       { computed, object, property } = node
@@ -1090,16 +1112,16 @@ SExpr = (context) ->
           if _.isFinite property.value
             if property.value % 1 is 0
               # slice column by index 
-              sexpr_call '[', (sexpr object), (sexpr Ast.Literal 'null', "'null'"), (sexpr Ast.Literal property.value, "#{property.value}")
+              sexpr_call '[', (sexpr object), sexpr_null(), (sexpr Ast.Literal property.value, "#{property.value}")
             else
               throw new Error "Property accessor is not an integer: [#{property.value}]."
           else
-            sexpr_slice context, object, property.value
+            sexpr_call '[', (sexpr object), sexpr_null(), (sexpr_strings property.value)
         else
           throw new Error "Property accessor is a [#{property.type}]. Expected #{Literal}."
       else
-        # static, replace label with index and re-enter
-        sexpr_slice context, object, property.name
+        sexpr_call '[', (sexpr object), sexpr_null(), (sexpr_strings property.name)
+
 
     YieldExpression: null
     ComprehensionExpression: null
@@ -1117,10 +1139,9 @@ SExpr = (context) ->
 
     Identifier: (node) ->
       if node.name is 'NaN'
-        sexpr null
+        sexpr_nan()
       else if symbol = context.globalSymbols[node.name]
-        # Replace with lookup
-        "%#{symbol.name}"
+        sexpr_lookup symbol
       else if func = context.globalFuncs[node.name]
         func.name
       else
@@ -1132,24 +1153,19 @@ SExpr = (context) ->
         sexpr value
 
       else if _.isFinite value
-        "##{raw}"
+        sexpr_number raw
 
       else if _.isString value
-        '"' + value + '"'
+        sexpr_string value
 
       else if _.isBoolean value
-        if value
-          "%TRUE"
-        else
-          "%FALSE"
+        sexpr_boolean value
 
       else # RegExp
         throw new Error "Unsupported literal [#{raw}]"
 
     Null: (node) ->
-      '#NaN'
-
-  sexprs = (sexprs) -> sexprs.join ' '
+      sexpr_nan()
 
   sexpr = (node) ->
     if handler = (if node then Nodes[node.type] else Nodes.Null)
@@ -1204,9 +1220,7 @@ map = (symbols, func) ->
 
   globalSymbols = {}
   for param, paramIndex in params
-    globalSymbols[param] = 
-      name: symbols[paramIndex]
-      properties: {} #TODO
+    globalSymbols[param] = symbols[paramIndex]
 
   sexpr = SExpr
     globalSymbols: globalSymbols

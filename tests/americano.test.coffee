@@ -1,6 +1,22 @@
 test = require 'tape'
 transpiler = require '../americano.js'
 
+# TODO
+# frame[10]
+# frame["column name"]
+# frame.columnName
+# apply(frame, function)
+# sapply(frame, function)
+# slice(begin, end)
+# filter
+# bind 
+# concat
+# multiply 
+# transpose
+# combine
+# replicate
+# sequence
+
 testCases = [
   [
     'Fails when arg is not a function'
@@ -57,7 +73,13 @@ testCases = [
     (a) -> +a
   ]
   [
-    '-'
+    '-10'
+    '#-10'
+    ['A']
+    (a) -> -10
+  ]
+  [
+    '-a'
     '(* %A #-1)'
     ['A']
     (a) -> -a
@@ -267,28 +289,46 @@ testCases = [
     (a) -> a[5 + 5]
   ]
   [
-    'Fails on A[10.5]'
+    'Fails on a[10.5]'
     null
     ['A']
     (a) -> a[10.5]
   ]
   [
-    'A[10]'
+    'a[10]'
     '([ %A "null" #10)'
     ['A']
     (a) -> a[10]
   ]
   [
-    'A[10.0]'
+    'a[10.0]'
     '([ %A "null" #10)'
     ['A']
     (a) -> a[10]
   ]
   [
-    '(A + B)[10]'
+    'fails on (a + b)[10]'
     null
     ['A', 'B']
     (a, b) -> (a + b)[10]
+  ]
+  [
+    'a["foo bar"]'
+    '([ %A "null" (slist "foo bar"))'
+    ['A']
+    (a) -> a["foo bar"]
+  ]
+  [
+    "a['foo bar']"
+    '([ %A "null" (slist "foo bar"))'
+    ['A']
+    (a) -> a['foo bar']
+  ]
+  [
+    'a.foo'
+    '([ %A "null" (slist "foo"))'
+    ['A']
+    (a) -> a.foo
   ]
 ]
 
