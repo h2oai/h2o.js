@@ -1,22 +1,6 @@
 test = require 'tape'
 transpiler = require '../americano.js'
 
-# TODO
-# frame[10]
-# frame["column name"]
-# frame.columnName
-# apply(frame, function)
-# sapply(frame, function)
-# slice(begin, end)
-# filter
-# bind 
-# concat
-# multiply 
-# transpose
-# combine
-# replicate
-# sequence
-
 testCases = [
   [
     'Fails when arg is not a function'
@@ -61,25 +45,25 @@ testCases = [
     `function(){ return a = b; }`
   ]
   [
-    '!'
+    'Unary !'
     '(not %A)'
     ['A']
     (a) -> not a
   ]
   [
-    '+'
+    'Unary +'
     '(as.numeric %A)'
     ['A']
     (a) -> +a
   ]
   [
-    '-10'
+    'Unary -10'
     '#-10'
     ['A']
     (a) -> -10
   ]
   [
-    '-a'
+    'Unary -a'
     '(* %A #-1)'
     ['A']
     (a) -> -a
@@ -109,79 +93,79 @@ testCases = [
     (a) -> undefined
   ]
   [
-    '=='
+    'Binary =='
     '(n %A %B)'
     ['A', 'B']
     `function(a, b){ return a == b; }`
   ]
   [
-    '==='
+    'Binary ==='
     '(n %A %B)'
     ['A', 'B']
     (a, b) -> a is b
   ]
   [
-    '!='
+    'Binary !='
     '(N %A %B)'
     ['A', 'B']
     `function(a, b){ return a != b; }`
   ]
   [
-    '!=='
+    'Binary !=='
     '(N %A %B)'
     ['A', 'B']
     (a, b) -> a isnt b
   ]
   [
-    '<'
+    'Binary <'
     '(l %A %B)'
     ['A', 'B']
     (a, b) -> a < b
   ]
   [
-    '<='
+    'Binary <='
     '(L %A %B)'
     ['A', 'B']
     (a, b) -> a <= b
   ]
   [
-    '>'
+    'Binary >'
     '(g %A %B)'
     ['A', 'B']
     (a, b) -> a > b
   ]
   [
-    '>='
+    'Binary >='
     '(G %A %B)'
     ['A', 'B']
     (a, b) -> a >= b
   ]
   [
-    '+'
+    'Binary +'
     '(+ %A %B)'
     ['A', 'B']
     (a, b) -> a + b
   ]
   [
-    '-'
+    'Binary -'
     '(- %A %B)'
     ['A', 'B']
     (a, b) -> a - b
   ]
   [
-    '*'
+    'Binary *'
     '(* %A %B)'
     ['A', 'B']
     (a, b) -> a * b
   ]
   [
-    '/'
+    'Binary /'
     '(/ %A %B)'
     ['A', 'B']
     (a, b) -> a / b
   ]
   [
-    '%'
+    'Binary %'
     '(mod %A %B)'
     ['A', 'B']
     (a, b) -> a % b
@@ -235,25 +219,25 @@ testCases = [
     (a, b) -> a instanceof b
   ]
   [
-    '&&'
+    'Logical &&'
     '(& %A %B)'
     ['A', 'B']
     (a, b) -> a && b
   ]
   [
-    '||'
+    'Logical ||'
     '(| %A %B)'
     ['A', 'B']
     (a, b) -> a || b
   ]
   [
-    'NaN'
+    'Literal NaN'
     '#NaN'
     []
     -> NaN
   ]
   [
-    'null'
+    'Literal null'
     '#NaN'
     []
     -> null
@@ -289,48 +273,62 @@ testCases = [
     (a) -> a[5 + 5]
   ]
   [
-    'Fails on a[10.5]'
+    'Fails on column slice by float'
     null
     ['A']
     (a) -> a[10.5]
   ]
   [
-    'a[10]'
+    'Column slice by index'
     '([ %A "null" #10)'
     ['A']
     (a) -> a[10]
   ]
   [
-    'a[10.0]'
+    'Column slice by integer index'
     '([ %A "null" #10)'
     ['A']
-    (a) -> a[10]
+    (a) -> a[10.0]
   ]
   [
-    'fails on (a + b)[10]'
+    'Fails on computed slicee'
     null
     ['A', 'B']
     (a, b) -> (a + b)[10]
   ]
   [
-    'a["foo bar"]'
+    'Slice by label (double quotes)'
     '([ %A "null" (slist "foo bar"))'
     ['A']
     (a) -> a["foo bar"]
   ]
   [
-    "a['foo bar']"
+    'Slice by label (single quotes)'
     '([ %A "null" (slist "foo bar"))'
     ['A']
     (a) -> a['foo bar']
   ]
   [
-    'a.foo'
+    'Slice by label (literal member)'
     '([ %A "null" (slist "foo"))'
     ['A']
     (a) -> a.foo
   ]
 ]
+
+# TODO
+# apply(frame, function)
+# sapply(frame, function)
+# slice(begin, end)
+# filter
+# bind 
+# concat
+# multiply 
+# transpose
+# combine
+# replicate
+# sequence
+
 
 test 'transpiler.map', (t) ->
   for [ message, expected, symbols, func ] in testCases
