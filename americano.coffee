@@ -928,6 +928,11 @@ Funcs =
   concat:
     name: 'rbind'
 
+do ->
+  for funcName, func of Funcs
+    func.isFunction = yes
+    func.isGlobal = yes
+  return
 
 Asts =
   Identifier: (name) ->
@@ -1151,10 +1156,17 @@ SExpr = (context) ->
     Identifier: (node) ->
       if node.name is 'NaN'
         sexpr_nan()
-      else if symbol = context.globalSymbols[node.name]
-        sexpr_lookup symbol
-      else if func = context.globalFuncs[node.name]
-        func.name
+      else if symbol = context.lookup node.name
+        if symbol.isFunction
+          if symbol.isGlobal
+            # Built-in function
+            symbol.name
+          else
+            # User-defined, named function
+            sexpr_lookup symbol.name
+        else
+          # Global
+          sexpr_lookup symbol.name
       else
         throw new Error "Unknown #{node.type}: [#{node.name}]"
 
@@ -1198,17 +1210,43 @@ walk = (ast, f) ->
 
   return
 
-parse = (f, expectedArity) ->
-  unless _.isFunction f
-    throw new Error "Not a function: [#{f}]"
+Context = (funcs, symbols, params) ->
 
-  source = f.toString()
+  _table = {}
+  for funcName, func of funcs
+    _table[funcName] = func
+  for param, paramIndex in params
+    _table[param.name] = name: symbols[paramIndex]
+
+  _tables = [_table]
+
+  push = (table) ->
+    _tables.unshift table
+
+  pop = ->
+    _tables.shift()
+
+  lookup = (name) ->
+    for table in _tables when symbol = table[name]
+      return symbol
+    return
+
+  lookup: lookup
+  push: push
+  pop: pop
+
+map = (symbols, lambda) ->
+
+  unless _.isFunction lambda
+    throw new Error "Not a function: [#{lambda}]"
+
+  source = lambda.toString()
 
   program = esprima.parse "var _O_o_ = #{source}"
   func = program.body[0].declarations[0].init  
 
   params = func.params
-  if params.length isnt expectedArity
+  if params.length isnt symbols.length
     throw new Error "Invalid function arity: expected [#{expectedArity}], found [#{params.length}] at #{source}"
 
   block = func.body
@@ -1220,28 +1258,14 @@ parse = (f, expectedArity) ->
   if statement.type isnt ReturnStatement
     throw new Error "No #{ReturnStatement} found in function body"
 
-  [ 
-    params.map (param) -> param.name
-    statement.argument
-  ]
+  expression = statement.argument
 
-map = (symbols, func) ->
-
-  [ params, ast ] = parse func, symbols.length
-
-  globalSymbols = {}
-  for param, paramIndex in params
-    globalSymbols[param] = symbols[paramIndex]
-
-  sexpr = SExpr
-    globalSymbols: globalSymbols
-    globalFuncs: Funcs
-
+  sexpr = SExpr Context Funcs, symbols, params
   try
-    sexpr ast
+    sexpr expression
 
   catch error
-    #console.log dump ast
+    #console.log dump expression
     throw error
 
 #
