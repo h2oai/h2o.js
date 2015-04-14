@@ -338,17 +338,21 @@ testCases = [
     ['A', 'B']
     (a, b) -> transpose a, b
   ]
+  [
+    'filter'
+    '([ %A (g ([ %A "null" (slist "foo")) #10) "null")'
+    ['A']
+    (a) -> filter a, -> a.foo > 10
+  ]
 ]
 
 # TODO
 # apply(frame, function)
 # sapply(frame, function)
 # slice(begin, end)
-# filter
 # combine
 # replicate
 # sequence
-
 
 test 'transpiler.map', (t) ->
   for [ message, expected, symbols, func ] in testCases

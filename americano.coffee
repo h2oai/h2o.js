@@ -928,6 +928,14 @@ Funcs =
   concat:
     name: 'rbind'
 
+  filter:
+    apply: (sexpr, context, args) ->
+      throw new Error "filter: Expected 2 args, found #{args.length}" if args.length isnt 2
+      [ object, predicate ] = args
+      throw new Error "filter: Expected arg #2 to be #{FunctionExpression}" if predicate.type isnt FunctionExpression
+      throw new Error "filter: Parameters are not supported in #{FunctionExpression}" if predicate.params.length isnt 0
+      sexpr_call '[', (sexpr object), (sexpr getFunctionExpression predicate), sexpr_null()
+
 do ->
   for funcName, func of Funcs
     func.isFunction = yes
@@ -1041,7 +1049,14 @@ SExpr = (context) ->
     ArrayExpression: null
     ObjectExpression: null
     Property: null
-    FunctionExpression: null
+
+    FunctionExpression: (node) ->
+      params = node.params
+      if params.length isnt 1
+        throw new Error 'Map functions must have exactly one parameter'
+
+      expression = getFunctionExpression node
+
     ArrowExpression: null
     ExpressionStatement: null
     SequenceExpression: null
@@ -1115,7 +1130,23 @@ SExpr = (context) ->
     NewExpression: null
 
     CallExpression: (node) ->
-      sexpr_apply (sexpr node.callee), (sexpr arg for arg in node.arguments)
+      { callee } = node
+      if callee.type is Identifier
+        func = context.lookup callee.name
+        if func.isFunction
+          if func.isGlobal
+            if func.apply
+              func.apply sexpr, context, node.arguments
+            else
+              # Built-in function
+              sexpr_apply func.name, (sexpr arg for arg in node.arguments)
+          else
+            # UDF
+            sexpr_apply (sexpr_lookup func.name), (sexpr arg for arg in node.arguments)
+        else
+          throw new Error "Not a function: [#{callee.name}]"
+      else
+        throw new Error "#{CallExpression}: expected #{Identifier}, found #{callee.type}.]"
 
     MemberExpression: (node) ->
       { computed, object, property } = node
@@ -1157,16 +1188,7 @@ SExpr = (context) ->
       if node.name is 'NaN'
         sexpr_nan()
       else if symbol = context.lookup node.name
-        if symbol.isFunction
-          if symbol.isGlobal
-            # Built-in function
-            symbol.name
-          else
-            # User-defined, named function
-            sexpr_lookup symbol.name
-        else
-          # Global
-          sexpr_lookup symbol.name
+        sexpr_lookup symbol.name
       else
         throw new Error "Unknown #{node.type}: [#{node.name}]"
 
@@ -1235,6 +1257,15 @@ Context = (funcs, symbols, params) ->
   push: push
   pop: pop
 
+getFunctionExpression = (node) ->
+  block = node.body
+  if block.body.length > 1
+    throw new Error 'Multiple statements are not supported in function bodies'
+  statement = block.body[0]
+  if statement.type isnt ReturnStatement
+    throw new Error "No #{ReturnStatement} found in function body"
+  statement.argument
+
 map = (symbols, lambda) ->
 
   unless _.isFunction lambda
@@ -1249,16 +1280,7 @@ map = (symbols, lambda) ->
   if params.length isnt symbols.length
     throw new Error "Invalid function arity: expected [#{expectedArity}], found [#{params.length}] at #{source}"
 
-  block = func.body
-
-  if block.body.length > 1
-    throw new Error 'Multiple statements are not supported in function bodies'
-
-  statement = block.body[0]
-  if statement.type isnt ReturnStatement
-    throw new Error "No #{ReturnStatement} found in function body"
-
-  expression = statement.argument
+  expression = getFunctionExpression func
 
   sexpr = SExpr Context Funcs, symbols, params
   try
