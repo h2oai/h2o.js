@@ -314,6 +314,30 @@ testCases = [
     ['A']
     (a) -> a.foo
   ]
+  [
+    'bind'
+    '(cbind %A %B %C %D)'
+    ['A', 'B', 'C', 'D']
+    (a, b, c, d) -> bind a, b, c, d
+  ]
+  [
+    'concat'
+    '(rbind %A %B %C %D)'
+    ['A', 'B', 'C', 'D']
+    (a, b, c, d) -> concat a, b, c, d
+  ]
+  [
+    'multiply'
+    '(x %A %B)'
+    ['A', 'B']
+    (a, b) -> multiply a, b
+  ]
+  [
+    'transpose'
+    '(t %A %B)'
+    ['A', 'B']
+    (a, b) -> transpose a, b
+  ]
 ]
 
 # TODO
@@ -321,10 +345,6 @@ testCases = [
 # sapply(frame, function)
 # slice(begin, end)
 # filter
-# bind 
-# concat
-# multiply 
-# transpose
 # combine
 # replicate
 # sequence

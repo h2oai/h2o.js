@@ -918,6 +918,17 @@ Funcs =
   toDate:
     name: 'as.Date'
 
+  multiply: 
+    name: 'x'
+  transpose:
+    name: 't'
+
+  bind:
+    name: 'cbind'
+  concat:
+    name: 'rbind'
+
+
 Asts =
   Identifier: (name) ->
     name: name
