@@ -370,6 +370,18 @@ testCases = [
     (a) -> filter a, a.foo > 10
   ]
   [
+    'length'
+    '(nrow %A)'
+    ['A']
+    (a) -> length a
+  ]
+  [
+    'width'
+    '(ncol %A)'
+    ['A']
+    (a) -> width a
+  ]
+  [
     'bind'
     '(cbind %A %B %C %D)'
     ['A', 'B', 'C', 'D']
@@ -446,6 +458,12 @@ testCases = [
     '(t %A)'
     ['A']
     (a) -> transpose a
+  ]
+  [
+    'if-else'
+    '(ifelse (l %A %B) (/ %A #42) (* %B #42))'
+    ['A', 'B']
+    (a, b) -> return (if a < b then a / 42 else b * 42)
   ]
   [
     'map'

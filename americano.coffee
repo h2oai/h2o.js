@@ -678,8 +678,8 @@ ASTLO
 Unary prefix ops
 ---------------
 ASTIsNA 
-TODO ASTNrow (nrow frame)
-TODO ASTNcol (ncol frame)
+ASTNrow (nrow frame)
+ASTNcol (ncol frame)
 TODO ASTLength (length frame)
 ASTAbs
 ASTSgn
@@ -750,8 +750,8 @@ TODO ASTQtile
 ASTCbind
 ASTRbind
 TODO ASTTable
-TODO ASTIfElse
-TODO ASTApply
+ASTIfElse
+ASTApply
 TODO ASTSApply
 TODO ASTddply
 TODO ASTMerge
@@ -933,6 +933,10 @@ Funcs =
   transpose:
     name: 't'
 
+  length:
+    name: 'nrow'
+  width:
+    name: 'ncol'
   bind:
     name: 'cbind'
   concat:
@@ -943,9 +947,9 @@ Funcs =
     name: ':'
   replicate:
     name: 'rep_len'
-  indices:
+  indices: #TODO ren to longs()?
     name: 'llist'
-  labels:
+  labels: #TODO ren to strings()?
     name: 'slist'
 
   select:
@@ -1072,11 +1076,8 @@ sexpr_lookup = (identifier) ->
 sexpr_strings = (strings...) ->
   sexpr_apply 'slist', strings.map sexpr_string
 
-sexpr_numbers = (numbers...) ->
+sexpr_doubles = (numbers...) ->
   sexpr_apply 'dlist', numbers.map sexpr_number
-
-sexpr_indices = (args...) ->
-  sexpr_apply 'llist', args
 
 sexpr_span = (begin, end) ->
   sexpr_call ':', begin, end
@@ -1185,8 +1186,9 @@ SExpr = (context) ->
 
       sexpr_call op, (sexpr left), (sexpr right)
 
-    ConditionalExpression: null
-      # { test, consequent, alternate } = node
+    ConditionalExpression: (node) ->
+     { test, consequent, alternate } = node
+     sexpr_call 'ifelse', (sexpr test), (sexpr consequent), (sexpr alternate)
 
     NewExpression: null
 
