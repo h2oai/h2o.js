@@ -1219,19 +1219,6 @@ SExpr = (context) ->
       dump node
       throw new Error "Unsupported operation: [#{node.type}]"
 
-walk = (ast, f) -> 
-  f ast
-
-  for key, node of ast when node isnt undefined and node isnt null
-    if node instanceof Array
-      for child in node
-        walk child, f
-
-    else if 'string' is typeof node.type
-      walk node, f
-
-  return
-
 Context = (funcs, symbols, params) ->
 
   _table = {}
