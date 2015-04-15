@@ -31,9 +31,11 @@
 #
 
 _ = require 'lodash'
+_uuid = require 'node-uuid'
 esprima = require 'esprima'
 
 dump = (a) -> console.log JSON.stringify a, null, 2
+uuid = -> _uuid.v4().replace /\-/g, ''
 
 #
 # Mozilla SpiderMonkey/Parser API
@@ -936,6 +938,15 @@ Funcs =
       throw new Error "filter: Parameters are not supported in #{FunctionExpression}" if predicate.params.length isnt 0
       sexpr_call '[', (sexpr object), (sexpr getFunctionExpression predicate), sexpr_null()
 
+  apply:
+    apply: (sexpr, context, args) ->
+      throw new Error "apply: Expected 2 args, found #{args.length}" if args.length isnt 2
+      [ object, func ] = args
+      throw new Error "apply: Expected arg #2 to be #{FunctionExpression}" if func.type isnt FunctionExpression
+      throw new Error "apply: Expected #{FunctionExpression} to have 1 parameter" if func.params.length isnt 1
+
+      sexpr_call 'apply', (sexpr object), (sexpr_number 1), sexpr_lookup collectFunc sexpr, context, func
+
 do ->
   for funcName, func of Funcs
     func.isFunction = yes
@@ -1016,6 +1027,9 @@ sexpr_indices = (indices...) ->
   #TODO spans (: #from #to) are allowed
   sexpr_apply 'llist', indices.map indices.map sexpr_number
 
+sexpr_def = (name, params, body) ->
+  sexpr_call 'def', name, (if params.length is 1 then sexpr_string params[0] else sexpr_strings params), body
+
 SExpr = (context) ->
   Nodes =
     Node: null
@@ -1049,14 +1063,7 @@ SExpr = (context) ->
     ArrayExpression: null
     ObjectExpression: null
     Property: null
-
-    FunctionExpression: (node) ->
-      params = node.params
-      if params.length isnt 1
-        throw new Error 'Map functions must have exactly one parameter'
-
-      expression = getFunctionExpression node
-
+    FunctionExpression: null
     ArrowExpression: null
     ExpressionStatement: null
     SequenceExpression: null
@@ -1169,7 +1176,6 @@ SExpr = (context) ->
       else
         sexpr_call '[', (sexpr object), sexpr_null(), (sexpr_strings property.name)
 
-
     YieldExpression: null
     ComprehensionExpression: null
     GeneratorExpression: null
@@ -1220,6 +1226,7 @@ SExpr = (context) ->
       throw new Error "Unsupported operation: [#{node.type}]"
 
 Context = (funcs, symbols, params) ->
+  _funcs = []
 
   _table = {}
   for funcName, func of funcs
@@ -1240,9 +1247,32 @@ Context = (funcs, symbols, params) ->
       return symbol
     return
 
+  collect = (name, expr) ->
+    _funcs.push name: name, expr: expr
+
   lookup: lookup
   push: push
   pop: pop
+  collect: collect
+  funcs: -> _funcs
+
+asSymbolTable = (names) ->
+  table = {}
+  for name in names
+    table[name] = name: name
+  table
+
+collectFunc = (sexpr, context, func) ->
+  paramNames = func.params.map (param) -> param.name
+  context.push asSymbolTable paramNames
+  funcName = 'anon' + uuid()
+  funcExpr = sexpr_def funcName, paramNames, sexpr getFunctionExpression func
+  context.pop()
+
+  context.collect funcName, funcExpr
+
+  funcName
+
 
 getFunctionExpression = (node) ->
   block = node.body
@@ -1251,6 +1281,7 @@ getFunctionExpression = (node) ->
   statement = block.body[0]
   if statement.type isnt ReturnStatement
     throw new Error "No #{ReturnStatement} found in function body"
+
   statement.argument
 
 map = (symbols, lambda) ->
@@ -1269,9 +1300,10 @@ map = (symbols, lambda) ->
 
   expression = getFunctionExpression func
 
-  sexpr = SExpr Context Funcs, symbols, params
+  sexpr = SExpr context = Context Funcs, symbols, params
   try
-    sexpr expression
+    ast = sexpr expression
+    [ ast, context.funcs() ]
 
   catch error
     #console.log dump expression
