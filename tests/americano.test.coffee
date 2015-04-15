@@ -1,6 +1,6 @@
 _ = require 'lodash'
 test = require 'tape'
-transpiler = require '../americano.js'
+transpile = require '../americano.js'
 
 testCases = [
   [
@@ -491,13 +491,13 @@ testCases = [
   ]
 ]
 
-test 'transpiler.map', (t) ->
+test 'transpile', (t) ->
   for [ message, expected, symbols, func ] in testCases
     if expected is null
-      t.throws (-> transpiler.map(symbols, func)), undefined, message
+      t.throws (-> transpile(symbols, func)), undefined, message
     else if _.isArray expected
       [ expectedAst, expectedFuncs ] = expected
-      [ actualAst, actualFuncs ] = transpiler.map symbols, func
+      [ actualAst, actualFuncs ] = transpile symbols, func
       ast = expectedAst
       t.equal actualFuncs.length, expectedFuncs.length, message + ' (func count)'
       for el, i in expectedFuncs
@@ -506,7 +506,7 @@ test 'transpiler.map', (t) ->
         ast = ast.split(el.name).join(al.name)
       t.equal ast, actualAst, message
     else
-      [ actualAst, actualFuncs] = transpiler.map symbols, func
+      [ actualAst, actualFuncs] = transpile symbols, func
       t.equal actualAst, expected, message
 
   t.end()

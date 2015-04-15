@@ -1337,7 +1337,7 @@ getFunctionExpression = (node) ->
 
   statement.argument
 
-map = (symbols, lambda) ->
+module.exports = (symbols, lambda) ->
 
   unless _.isFunction lambda
     throw new Error "Not a function: [#{lambda}]"
@@ -1381,5 +1381,3 @@ map = (symbols, lambda) ->
 # Create a new temp frame with n vecs
 # (cbind %target_frame "k1" "k2" ...)
 
-module.exports =
-  map: map
