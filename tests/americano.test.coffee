@@ -328,6 +328,60 @@ testCases = [
     (a, b, c, d) -> concat a, b, c, d
   ]
   [
+    'replicate'
+    '(rep_len %A #1000)'
+    ['A']
+    (a) -> replicate a, 1000
+  ]
+  [
+    'span'
+    '(: #10 #20)'
+    []
+    -> span 10, 20
+  ]
+  [
+    'combine numbers'
+    '(c #1 #2 #3)'
+    []
+    -> combine 1, 2, 3
+  ]
+  [
+    'combine numbers and spans'
+    '(c #1 #2 #3 (: #10 #20))'
+    []
+    -> combine 1, 2, 3, span 10, 20
+  ]
+  [
+    'sequence() fails without args'
+    null
+    []
+    -> sequence()
+  ]
+  [
+    'sequence 10'
+    '(seq_len #10)'
+    []
+    -> sequence 10
+  ]
+  [
+    'sequence 10, 20'
+    '(seq #10 #20 #1)'
+    []
+    -> sequence 10, 20
+  ]
+  [
+    'sequence 10, 20, 2'
+    '(seq #10 #20 #2)'
+    []
+    -> sequence 10, 20, 2
+  ]
+  [
+    'sequence() fails with 3+ args'
+    null
+    []
+    -> sequence 10, 20, 30, 40
+  ]
+  [
     'multiply'
     '(x %A %B)'
     ['A', 'B']
@@ -372,12 +426,7 @@ testCases = [
 ]
 
 # TODO
-# apply(frame, function)
-# sapply(frame, function)
 # slice(begin, end)
-# combine
-# replicate
-# sequence
 
 test 'transpiler.map', (t) ->
   for [ message, expected, symbols, func ] in testCases

@@ -929,6 +929,24 @@ Funcs =
     name: 'cbind'
   concat:
     name: 'rbind'
+  combine:
+    name: 'c'
+  span:
+    name: ':'
+  replicate:
+    name: 'rep_len'
+
+  sequence:
+    apply: (sexpr, context, args) ->
+      switch args.length
+        when 1
+          sexpr_call 'seq_len', sexpr args[0]
+        when 2
+          sexpr_call 'seq', (sexpr args[0]), (sexpr args[1]), (sexpr_number 1)
+        when 3
+          sexpr_apply 'seq', args.map sexpr
+        else
+          throw new Error "sequence: Invalid number of arguments, expected 1 - 3, found #{args.length}"
 
   filter:
     apply: (sexpr, context, args) ->
