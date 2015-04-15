@@ -946,6 +946,14 @@ Funcs =
       throw new Error "apply: Expected #{FunctionExpression} to have 1 parameter" if func.params.length isnt 1
 
       sexpr_call 'apply', (sexpr object), (sexpr_number 1), sexpr_lookup collectFunc sexpr, context, func
+  sapply:
+    apply: (sexpr, context, args) ->
+      throw new Error "sapply: Expected 2 args, found #{args.length}" if args.length isnt 2
+      [ object, func ] = args
+      throw new Error "sapply: Expected arg #2 to be #{FunctionExpression}" if func.type isnt FunctionExpression
+      throw new Error "sapply: Expected #{FunctionExpression} to have 1 parameter" if func.params.length isnt 1
+
+      sexpr_call 'apply', (sexpr object), (sexpr_number 2), sexpr_lookup collectFunc sexpr, context, func
 
 do ->
   for funcName, func of Funcs

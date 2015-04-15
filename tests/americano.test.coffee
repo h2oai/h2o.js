@@ -357,6 +357,18 @@ testCases = [
     ['A']
     (a) -> apply a, (b) -> a * b + 10
   ]
+  [
+    'sapply'
+    [
+      '(apply %A #2 %anon)'
+      [ 
+        name: 'anon'
+        expr: '(def anon "b" (+ (* %A %b) #10))'
+      ]
+    ]
+    ['A']
+    (a) -> sapply a, (b) -> a * b + 10
+  ]
 ]
 
 # TODO
