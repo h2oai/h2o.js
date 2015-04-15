@@ -1,3 +1,4 @@
+_ = require 'lodash'
 test = require 'tape'
 transpiler = require '../americano.js'
 
@@ -344,6 +345,18 @@ testCases = [
     ['A']
     (a) -> filter a, -> a.foo > 10
   ]
+  [
+    'apply'
+    [
+      '(apply %A #1 %anon)'
+      [ 
+        name: 'anon'
+        expr: '(def anon "b" (+ (* %A %b) #10))'
+      ]
+    ]
+    ['A']
+    (a) -> apply a, (b) -> a * b + 10
+  ]
 ]
 
 # TODO
@@ -358,7 +371,18 @@ test 'transpiler.map', (t) ->
   for [ message, expected, symbols, func ] in testCases
     if expected is null
       t.throws (-> transpiler.map(symbols, func)), undefined, message
+    else if _.isArray expected
+      [ expectedAst, expectedFuncs ] = expected
+      [ actualAst, actualFuncs ] = transpiler.map symbols, func
+      ast = expectedAst
+      t.equal actualFuncs.length, expectedFuncs.length, message + ' (func count)'
+      for el, i in expectedFuncs
+        al = actualFuncs[i]
+        t.equal al.expr, el.expr.split(el.name).join(al.name), message + ' (func)'
+        ast = ast.split(el.name).join(al.name)
+      t.equal ast, actualAst, message
     else
-      t.equal transpiler.map(symbols, func), expected, message
+      [ actualAst, actualFuncs] = transpiler.map symbols, func
+      t.equal actualAst, expected, message
 
   t.end()
