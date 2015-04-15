@@ -239,7 +239,7 @@ testCases = [
   ]
   [
     'Literal null'
-    '#NaN'
+    '"null"'
     []
     -> null
   ]
@@ -268,52 +268,106 @@ testCases = [
     -> false
   ]
   [
-    'Fails on non-literal computed members'
-    null
+    'random() without seed'
+    '(h2o.runif %A #-1)'
     ['A']
-    (a) -> a[5 + 5]
+    (a) -> random a
   ]
   [
-    'Fails on column slice by float'
+    'random() with seed'
+    '(h2o.runif %A #42)'
+    ['A']
+    (a) -> random a, 42
+  ]
+  [
+    'Fails on select using float index'
     null
     ['A']
     (a) -> a[10.5]
   ]
   [
-    'Column slice by index'
+    'select using index'
     '([ %A "null" #10)'
     ['A']
     (a) -> a[10]
   ]
   [
-    'Column slice by integer index'
+    'select using integer index'
     '([ %A "null" #10)'
     ['A']
     (a) -> a[10.0]
   ]
   [
-    'Fails on computed slicee'
-    null
+    'select using computed members'
+    '([ %A "null" (+ %B #5))'
+    ['A', 'B']
+    (a, b) -> a[b + 5]
+  ]
+  [
+    'select on computed object'
+    '([ (+ %A %B) "null" #10)'
     ['A', 'B']
     (a, b) -> (a + b)[10]
   ]
   [
-    'Slice by label (double quotes)'
+    'select using label (double quotes)'
     '([ %A "null" (slist "foo bar"))'
     ['A']
     (a) -> a["foo bar"]
   ]
   [
-    'Slice by label (single quotes)'
+    'select using label (single quotes)'
     '([ %A "null" (slist "foo bar"))'
     ['A']
     (a) -> a['foo bar']
   ]
   [
-    'Slice by label (literal member)'
+    'select using label (literal member)'
     '([ %A "null" (slist "foo"))'
     ['A']
     (a) -> a.foo
+  ]
+  [
+    'select multiple using labels'
+    '([ %A "null" (slist "foo" "bar" "baz"))'
+    ['A']
+    (a) -> select a, labels "foo", "bar", "baz"
+  ]
+  [
+    'select using frame'
+    '([ %A "null" %B)'
+    ['A', 'B']
+    (a, b) -> select a, b
+  ]
+  [
+    'select using indices/spans'
+    '([ %A "null" (llist #10 #20 (: #30 #40)))'
+    ['A']
+    (a) -> select a, indices 10, 20, span 30, 40
+  ]
+  [
+    'select using expression'
+    '([ %A "null" (g ([ %A "null" (slist "foo")) #10))'
+    ['A']
+    (a) -> select a, a.foo > 10
+  ]
+  [
+    'filter using frame'
+    '([ %A %B "null")'
+    ['A', 'B']
+    (a, b) -> filter a, b
+  ]
+  [
+    'filter using indices/spans'
+    '([ %A (llist #10 #20 (: #30 #40)) "null")'
+    ['A']
+    (a) -> filter a, indices 10, 20, span 30, 40
+  ]
+  [
+    'filter using expression'
+    '([ %A (g ([ %A "null" (slist "foo")) #10) "null")'
+    ['A']
+    (a) -> filter a, a.foo > 10
   ]
   [
     'bind'
@@ -389,18 +443,12 @@ testCases = [
   ]
   [
     'transpose'
-    '(t %A %B)'
-    ['A', 'B']
-    (a, b) -> transpose a, b
-  ]
-  [
-    'filter'
-    '([ %A (g ([ %A "null" (slist "foo")) #10) "null")'
+    '(t %A)'
     ['A']
-    (a) -> filter a, -> a.foo > 10
+    (a) -> transpose a
   ]
   [
-    'apply'
+    'map'
     [
       '(apply %A #1 %anon)'
       [ 
@@ -409,10 +457,10 @@ testCases = [
       ]
     ]
     ['A']
-    (a) -> apply a, (b) -> a * b + 10
+    (a) -> map a, (b) -> a * b + 10
   ]
   [
-    'sapply'
+    'collect'
     [
       '(apply %A #2 %anon)'
       [ 
@@ -421,12 +469,9 @@ testCases = [
       ]
     ]
     ['A']
-    (a) -> sapply a, (b) -> a * b + 10
+    (a) -> collect a, (b) -> a * b + 10
   ]
 ]
-
-# TODO
-# slice(begin, end)
 
 test 'transpiler.map', (t) ->
   for [ message, expected, symbols, func ] in testCases

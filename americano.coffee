@@ -816,7 +816,15 @@ Funcs =
   pow:
     name: '^'
   random:
-    name: 'h2o.runif'
+    apply: (sexpr, context, args) ->
+      name = 'h2o.runif'
+      switch args.length
+        when 1
+          sexpr_call name, (sexpr args[0]), sexpr_number -1
+        when 2
+          sexpr_apply name, args.map sexpr
+        else
+          throw new Error "random: Invalid number of arguments, expected 2 , found #{args.length}"
   round:
     name: 'round' # round(num, digits)
   sin:
@@ -935,6 +943,34 @@ Funcs =
     name: ':'
   replicate:
     name: 'rep_len'
+  indices:
+    name: 'llist'
+  labels:
+    name: 'slist'
+
+  select:
+    apply: (sexpr, context, args) ->
+      switch args.length
+        when 2
+          sexpr_call '[', (sexpr args[0]), (sexpr null), (sexpr args[1])
+        else
+          throw new Error "select: Invalid number of arguments, expected 2 , found #{args.length}"
+
+  filter:
+    apply: (sexpr, context, args) ->
+      switch args.length
+        when 2
+          sexpr_call '[', (sexpr args[0]), (sexpr args[1]), (sexpr null)
+        else
+          throw new Error "filter: Invalid number of arguments, expected 2 , found #{args.length}"
+
+  slice:
+    apply: (sexpr, context, args) ->
+      switch args.length
+        when 3
+          sexpr_call '[', args.map sexpr
+        else
+          throw new Error "slice: Invalid number of arguments, expected 3 , found #{args.length}"
 
   sequence:
     apply: (sexpr, context, args) ->
@@ -948,28 +984,21 @@ Funcs =
         else
           throw new Error "sequence: Invalid number of arguments, expected 1 - 3, found #{args.length}"
 
-  filter:
+  map:
     apply: (sexpr, context, args) ->
-      throw new Error "filter: Expected 2 args, found #{args.length}" if args.length isnt 2
-      [ object, predicate ] = args
-      throw new Error "filter: Expected arg #2 to be #{FunctionExpression}" if predicate.type isnt FunctionExpression
-      throw new Error "filter: Parameters are not supported in #{FunctionExpression}" if predicate.params.length isnt 0
-      sexpr_call '[', (sexpr object), (sexpr getFunctionExpression predicate), sexpr_null()
-
-  apply:
-    apply: (sexpr, context, args) ->
-      throw new Error "apply: Expected 2 args, found #{args.length}" if args.length isnt 2
+      throw new Error "map: Expected 2 args, found #{args.length}" if args.length isnt 2
       [ object, func ] = args
-      throw new Error "apply: Expected arg #2 to be #{FunctionExpression}" if func.type isnt FunctionExpression
-      throw new Error "apply: Expected #{FunctionExpression} to have 1 parameter" if func.params.length isnt 1
+      throw new Error "map: Expected arg #2 to be #{FunctionExpression}" if func.type isnt FunctionExpression
+      throw new Error "map: Expected #{FunctionExpression} to have 1 parameter" if func.params.length isnt 1
 
       sexpr_call 'apply', (sexpr object), (sexpr_number 1), sexpr_lookup collectFunc sexpr, context, func
-  sapply:
+
+  collect:
     apply: (sexpr, context, args) ->
-      throw new Error "sapply: Expected 2 args, found #{args.length}" if args.length isnt 2
+      throw new Error "collect: Expected 2 args, found #{args.length}" if args.length isnt 2
       [ object, func ] = args
-      throw new Error "sapply: Expected arg #2 to be #{FunctionExpression}" if func.type isnt FunctionExpression
-      throw new Error "sapply: Expected #{FunctionExpression} to have 1 parameter" if func.params.length isnt 1
+      throw new Error "collect: Expected arg #2 to be #{FunctionExpression}" if func.type isnt FunctionExpression
+      throw new Error "collect: Expected #{FunctionExpression} to have 1 parameter" if func.params.length isnt 1
 
       sexpr_call 'apply', (sexpr object), (sexpr_number 2), sexpr_lookup collectFunc sexpr, context, func
 
@@ -1046,12 +1075,11 @@ sexpr_strings = (strings...) ->
 sexpr_numbers = (numbers...) ->
   sexpr_apply 'dlist', numbers.map sexpr_number
 
-sexpr_span = (begin, end) ->
-  sexpr_call ':', (sexpr_number begin), (sexpr_number end)
+sexpr_indices = (args...) ->
+  sexpr_apply 'llist', args
 
-sexpr_indices = (indices...) ->
-  #TODO spans (: #from #to) are allowed
-  sexpr_apply 'llist', indices.map indices.map sexpr_number
+sexpr_span = (begin, end) ->
+  sexpr_call ':', begin, end
 
 sexpr_def = (name, params, body) ->
   sexpr_call 'def', name, (if params.length is 1 then sexpr_string params[0] else sexpr_strings params), body
@@ -1166,7 +1194,7 @@ SExpr = (context) ->
       { callee } = node
       if callee.type is Identifier
         func = context.lookup callee.name
-        if func.isFunction
+        if func?.isFunction
           if func.isGlobal
             if func.apply
               func.apply sexpr, context, node.arguments
@@ -1183,22 +1211,19 @@ SExpr = (context) ->
 
     MemberExpression: (node) ->
       { computed, object, property } = node
-
-      throw new Error "Object is a [#{object.type}]. Expected #{Identifier}." unless object.type is Identifier
-
       if computed
         # expression
         if property.type is Literal
           if _.isFinite property.value
             if property.value % 1 is 0
               # slice column by index 
-              sexpr_call '[', (sexpr object), sexpr_null(), (sexpr Ast.Literal property.value, "#{property.value}")
+              sexpr_call '[', (sexpr object), sexpr_null(), (sexpr_number property.value)
             else
               throw new Error "Property accessor is not an integer: [#{property.value}]."
           else
             sexpr_call '[', (sexpr object), sexpr_null(), (sexpr_strings property.value)
         else
-          throw new Error "Property accessor is a [#{property.type}]. Expected #{Literal}."
+          sexpr_call '[', (sexpr object), sexpr_null(), (sexpr property)
       else
         sexpr_call '[', (sexpr object), sexpr_null(), (sexpr_strings property.name)
 
@@ -1241,15 +1266,15 @@ SExpr = (context) ->
       else # RegExp
         throw new Error "Unsupported literal [#{raw}]"
 
-    Null: (node) ->
-      sexpr_nan()
-
   sexpr = (node) ->
-    if handler = (if node then Nodes[node.type] else Nodes.Null)
-      handler node
+    if node
+      if handler = Nodes[node.type]
+        handler node
+      else
+        dump node
+        throw new Error "Unsupported operation: [#{node.type}]"
     else
-      dump node
-      throw new Error "Unsupported operation: [#{node.type}]"
+      sexpr_null()
 
 Context = (funcs, symbols, params) ->
   _funcs = []
