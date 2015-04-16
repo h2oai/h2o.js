@@ -937,20 +937,20 @@ Funcs =
     name: 'nrow'
   width:
     name: 'ncol'
-  bind:
-    name: 'cbind'
-  concat:
-    name: 'rbind'
   combine:
+    name: 'cbind'
+  append:
+    name: 'rbind'
+  vector:
     name: 'c'
-  span:
+  at:
+    name: 'llist' # long arrays
+  to:
     name: ':'
   replicate:
     name: 'rep_len'
-  indices: #TODO ren to longs()?
-    name: 'llist'
-  labels: #TODO ren to strings()?
-    name: 'slist'
+  labels:
+    name: 'slist' # string arrays
 
   select:
     apply: (sexpr, context, args) ->
@@ -972,7 +972,7 @@ Funcs =
     apply: (sexpr, context, args) ->
       switch args.length
         when 3
-          sexpr_call '[', args.map sexpr
+          sexpr_apply '[', args.map sexpr
         else
           throw new Error "slice: Invalid number of arguments, expected 3 , found #{args.length}"
 
@@ -1337,7 +1337,7 @@ getFunctionExpression = (node) ->
 
   statement.argument
 
-module.exports = (symbols, lambda) ->
+transpile = (symbols, lambda) ->
 
   unless _.isFunction lambda
     throw new Error "Not a function: [#{lambda}]"
@@ -1381,3 +1381,5 @@ module.exports = (symbols, lambda) ->
 # Create a new temp frame with n vecs
 # (cbind %target_frame "k1" "k2" ...)
 
+module.exports =
+  transpile: transpile
