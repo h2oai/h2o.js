@@ -109,9 +109,9 @@ createRunnableExample = (title, source) ->
   code = source
     .replace termination, (match, prefix, keyword) ->
       if keyword is 'fail'
-        "#{prefix}t.fail(error.message)#{EOL}#{prefix}t.end()"
+        "#{prefix}h2o.dump error if error#{EOL}#{prefix}t.fail error.message#{EOL}#{prefix}t.end()"
       else # 'pass'
-        "#{prefix}t.pass('#{title}')#{EOL}#{prefix}t.end()"
+        "#{prefix}t.pass '#{title}' #{EOL}#{prefix}t.end()"
     .replace tildePath, "path.join __dirname, '../../../h2o-dev/smalldata', '"
     .split EOL
     .map (line) -> '  ' + line
