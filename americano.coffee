@@ -926,7 +926,7 @@ Funcs =
   toString:
     name: 'as.character'
   toDate:
-    name: 'as.Date'
+    name: 'toDate'
 
   multiply: 
     name: 'x'
