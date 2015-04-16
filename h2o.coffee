@@ -745,171 +745,6 @@ lib.connect = (host='http://localhost:54321') ->
   #
 
   ###
-  function select_obsolete
-  Get a reference to a vector in a frame by label or index.
-  ---
-  frame label -> Future<Vector>
-  frame index -> Future<Vector>
-  frame label go -> None
-  frame index go -> None
-  ---
-  frame: Frame
-    The source frame.
-  label: String
-    The vector's label (equivalent to the column name).
-  index: Number
-    The zero-based index of the vector.
-  go: Error Vector -> None
-    Error-first callback.
-  ---
-  select(frame, label)
-  Select a vector using its label.
-  ```
-  airlines = h2o.importFrame
-    path: '~/airlines/AirlinesTrain.csv.zip'
-  depTime = h2o.select airlines, 'DepTime'
-  depTime (error, result) ->
-    if error
-      fail
-    else
-      h2o.dump result
-      h2o.removeAll ->
-        pass
-  ---
-  select(frame, index)
-  Select a vector using its index in the frame.
-  ```
-  airlines = h2o.importFrame
-    path: '~/airlines/AirlinesTrain.csv.zip'
-  depTime = h2o.select airlines, 4
-  depTime (error, result) ->
-    if error
-      fail
-    else
-      h2o.removeAll ->
-        pass
-  ###
-  selectVector = method (frame, label, go) ->
-    resolveFrame frame, (error, frame) ->
-      if error
-        go error
-      else
-        if _.isFinite label
-          vector = frame.columns[label]
-          if vector
-            go null, vector
-          else
-            go new Error "Vector at index [#{label}] not found in Frame [#{frame.key.name}]"
-
-        else
-          vector = _.find frame.columns, (vector) -> vector.label is label
-          if vector
-            go null, vector
-          else
-            go new Error "Vector [#{label}] not found in Frame [#{frame.key.name}]"
-  
-  ###
-  function map
-  Apply a function to each row in a frame or a set of vectors to produce a new frame or vector. The eventual result of this operation depends on what is being mapped over, and the return type of the function `func`.
-
-  - In the `(vector, func)` form, `func` is applied to each element of the source vector, producing a new vector of the same length as the source vector. `func` should be a function of the form `(scalar) -> (scalar)`.
-  - In the `(vectors, func)` form, `func` is applied to each set of elements in the source vectors, producing a new vector of the same length as the source vectors. `func` should be a function of the form `(scalars...) -> scalar`, where the number of parameters `scalars...` is the same as the number of source vectors.
-  - In the `(frame, func)` form, `func` is applied to every element of every vector in the source frame, producing a new frame of the same dimensions as the source frame. `func` should be a function of the form `(scalar) -> scalar`.
-  ---
-  vector func -> Future<Vector>
-  vectors func -> Future<Vector>
-  frame func -> Future<Frame>
-  vector func go -> None
-  vectors func go -> None
-  frame func go -> None
-  ---
-  frame: Frame
-    The frame to map over. 
-  vector: Vector
-    The vector to map over.
-  vectors: [Vector]
-    The array of vectors to map over.
-  func: Function
-    The function to call.
-  go: Error Frame|Vector -> None
-    Error-first callback.
-  ---
-  map(vector, map)
-  `(vector, ((scalar) -> scalar))`
-  ```
-  xs = h2o.sequence 5
-  squares = h2o.map xs, (a) -> a * a
-  squares (error, vector) ->
-    if error
-      fail
-    else
-      h2o.dump vector
-      pass
-  ---
-  map(vectors, map)
-  `(vectors, ((scalars...) -> scalar))`
-  ```
-  xs = h2o.sequence 10, 15 
-  ys = h2o.sequence 20, 25
-  zs = h2o.sequence 30, 35
-  sumOfSquares = h2o.map [ xs, ys, zs ], (x, y, z) ->
-    x * x + y * y + z * z
-  sumOfSquares (error, vector) ->
-    if error
-      fail
-    else
-      h2o.dump vector
-      pass
-  ---
-  map(frame, map)
-  `(frame, ((scalar) -> scalar))` 
-  ```
-  xs = h2o.sequence 10, 15 
-  ys = h2o.sequence 20, 25
-  zs = h2o.sequence 30, 35
-  frame = h2o.combine [ xs, ys, zs ]
-  squares = h2o.map frame, (a) -> a * a
-  squares (error, frame) ->
-    if error
-      fail
-    else
-      h2o.dump frame
-      pass
-  ---
-  map(frame, reduce)
-  `(frame, ((vector) -> scalar))` 
-  ```
-  xs = h2o.sequence 10, 15 
-  ys = h2o.sequence 20, 25
-  zs = h2o.sequence 30, 35
-  frame = h2o.combine [ xs, ys, zs ]
-  squares = h2o.map frame, (a) -> sum a
-  squares (error, frame) ->
-    if error
-      fail
-    else
-      h2o.dump frame
-      pass
-  ###
-  mapVectors = method (arg, func, go) ->
-    vectors_ = if _.isArray arg then arg else [ arg ]
-    fj.join vectors_, (error, vectors) ->
-      if error
-        go error
-      else
-        vectorKeys = vectors.map keyOf
-        try
-          op = transpiler.transpile vectorKeys, func
-          callExpr (astPut uuid(), op), (error, vector) ->
-            if error
-              go error
-            else
-              go null, vector
-        catch error
-          console.log func.toString()
-          go error
-
-  ###
   function apply
   Apply a Javascript function to one or more frames.
   ---
@@ -927,10 +762,89 @@ lib.connect = (host='http://localhost:54321') ->
   go: Error RapidsV3 -> None
     Error-first callback.
   ---
-  apply()
+  Create a sequence
   Create a vector with values from 1 to 10.
   ```
-  h2o.apply [], (-> sequence 10), (error, result) ->
+  frame = h2o.apply [], -> sequence 10
+  frame (error, result) ->
+    if error
+      fail
+    else
+      h2o.print.columns result.col_names, result.head
+      h2o.removeAll ->
+        pass
+  ---
+  Create a sequence and square it
+  Create a sequence and square it
+  ```
+  seq = h2o.apply [], -> sequence 10
+  squares = h2o.apply seq, (a) -> a * a 
+  frame = h2o.apply [seq, squares], (seq, squares) ->
+    combine seq, squares
+  frame (error, result) ->
+    if error
+      fail
+    else
+      h2o.print.columns result.col_names, result.head
+      h2o.removeAll ->
+        pass
+  ---
+  Create multiple sequences and sum their squares
+  Create multiple sequences and sum their squares
+  ```
+  xs = h2o.apply [], -> sequence 10, 15 
+  ys = h2o.apply [], -> sequence 20, 25
+  zs = h2o.apply [], -> sequence 30, 35
+  frame = h2o.apply [ xs, ys, zs ], (x, y, z) ->
+    combine x, y, x, x * x + y * y + z * z
+  frame (error, result) ->
+    if error
+      fail
+    else
+      h2o.print.columns result.col_names, result.head
+      h2o.removeAll ->
+        pass
+  ---
+  Square an entire frame
+  Square an entire frame
+  ```
+  source = h2o.apply [], ->
+    combine(
+      sequence 10, 15 
+      sequence 20, 25
+      sequence 30, 35
+    )
+  squares = h2o.apply source, (a) -> a * a
+  squares (error, result) ->
+    if error
+      fail
+    else
+      h2o.print.columns result.col_names, result.head
+      h2o.removeAll ->
+        pass
+  ---
+  Aggregate multiple columns in a frame
+  Aggregate multiple columns in a frame
+  ```
+  source = h2o.apply [], ->
+    combine(
+      sequence 10, 15 
+      sequence 20, 25
+      sequence 30, 35
+    )
+  target = h2o.apply source, (a) ->
+    vector(
+      sum a[0]
+      min a[0]
+      max a[0]
+      sum a[1]
+      min a[1]
+      max a[1]
+      sum a[2]
+      min a[2]
+      max a[2]
+    )
+  target (error, result) ->
     if error
       fail
     else
@@ -951,7 +865,7 @@ lib.connect = (host='http://localhost:54321') ->
           console.log func.toString()
           return go error
 
-        importFuncs procs, (error) ->
+        importFuncs (proc.expr for proc in procs), (error) ->
           if error
             go error
           else
@@ -1029,87 +943,79 @@ lib.connect = (host='http://localhost:54321') ->
     evaluateExpression (astPut uuid(), op), go
 
   ###
-  function tapply
-  Apply a function to a frame, column-wise.
+  function map
+  Apply a function to a frame, row-wise.
   ---
-  frame func -> Future<Frame>
-  vector func -> Future<Vector>
-  frame func go -> None
-  vector func go -> None
+  frame func -> Frame
   ---
   frame: Frame
     The source frame.
-  vector: Vector
-    The source vector.
   func: Function
-    The function to apply to the given frame or vector.
-  go: Error Frame|Vector -> None
-    Error-first callback.
+    The function to apply to every value. Must have exactly one parameter.
   ---
-  tapply()
-  Square all numbers in all vectors in a frame.
+  Square each value in a frame by row
+  Square each value in a frame by row
   ```
-  vector = h2o.sequence 5
-  frame = h2o.combine [ vector, vector, vector, vector, vector ]
-  h2o.tapply frame, ((a) -> (a * a)), (error, result) ->
+  seq = h2o.apply [], -> sequence 5
+  frame = h2o.apply seq, (seq) -> combine seq, seq + 1, seq + 2, seq + 3, seq + 4
+  h2o.apply frame, ((a) -> map a, (b) -> b * b), (error, result) ->
     if error
       fail
     else
-      h2o.dump result
-      pass
-  ###
-  applyToFrame = method (arg, func, go) ->
-    _applyToFrame 1, arg, func, go
-
-  ###
-  function sapply
-  Apply a function to a frame, column-wise.
+      h2o.print.columns result.col_names, result.head
+      h2o.removeAll ->
+        pass
   ---
-  frame func -> Future<Frame>
-  vector func -> Future<Vector>
-  frame func go -> None
-  vector func go -> None
+  Square each value in a frame and sum by row
+  Square each value in a frame and sum by row
+  ```
+  seq = h2o.apply [], -> sequence 5
+  frame = h2o.apply seq, (seq) -> combine seq, seq + 1, seq + 2, seq + 3, seq + 4
+  h2o.apply frame, ((a) -> map a, (b) -> sum b), (error, result) ->
+    if error
+      fail
+    else
+      h2o.print.columns result.col_names, result.head
+      h2o.removeAll ->
+        pass
+  ###
+  ###
+  function collect
+  Apply a function to a frame, row-wise.
+  ---
+  frame func -> Frame
   ---
   frame: Frame
     The source frame.
-  vector: Vector
-    The source vector.
   func: Function
-    The function to apply to the given frame or vector.
-  go: Error Frame|Vector -> None
-    Error-first callback.
+    The function to apply to every value. Must have exactly one parameter.
   ---
-  sapply()
-  Square all numbers in all vectors in a frame.
+  Square each value in a frame by column
+  Square each value in a frame by column
   ```
-  vector = h2o.sequence 5
-  frame = h2o.combine [ vector, vector, vector, vector, vector ]
-  h2o.sapply frame, ((a) -> (a * a)), (error, result) ->
+  seq = h2o.apply [], -> sequence 5
+  frame = h2o.apply seq, (seq) -> combine seq, seq + 1, seq + 2, seq + 3, seq + 4
+  h2o.apply frame, ((a) -> collect a, (b) -> b * b), (error, result) ->
     if error
       fail
     else
-      h2o.dump result
-      pass
+      h2o.print.columns result.col_names, result.head
+      h2o.removeAll ->
+        pass
+  ---
+  Square each value in a frame and sum by column
+  Square each value in a frame and sum by column
+  ```
+  seq = h2o.apply [], -> sequence 5
+  frame = h2o.apply seq, (seq) -> combine seq, seq + 1, seq + 2, seq + 3, seq + 4
+  h2o.apply frame, ((a) -> collect a, (b) -> sum b ), (error, result) ->
+    if error
+      fail
+    else
+      h2o.print.columns result.col_names, result.head
+      h2o.removeAll ->
+        pass
   ###
-  sapplyToFrame = method (arg, func, go) ->
-    _applyToFrame 2, arg, func, go
-
-  _applyToFrame = (margin, arg, func, go) ->
-    join arg, go, (frame) ->
-      def = astFunc func
-      op = astPut(
-        uuid()
-        astCall(
-          'apply'
-          astRead keyOf frame
-          astNumber 1
-          astRead def.name
-        )
-      )
-      if def.ast
-        applyExpr [ def.ast ], op, go
-      else
-        callExpr op, go
 
   ###
   function select
@@ -1744,10 +1650,7 @@ lib.connect = (host='http://localhost:54321') ->
   about: about
 
   # Local
-  select: selectVector
-  map: mapVectors
   apply: apply
-  sapply: sapplyToFrame
   resolve: resolve
   # groupBy: groupBy
 
