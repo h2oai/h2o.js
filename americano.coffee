@@ -1093,7 +1093,7 @@ sexpr_span = (begin, end) ->
   sexpr_call ':', begin, end
 
 sexpr_def = (name, params, body) ->
-  sexpr_call 'def', name, (if params.length is 1 then sexpr_string params[0] else sexpr_strings params), body
+  sexpr_call 'def', (sexpr_string name), (_sexpr_strings params), body
 
 SExpr = (context) ->
   Nodes =

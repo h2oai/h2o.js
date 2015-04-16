@@ -477,7 +477,7 @@ testCases = [
       '(apply %A #1 %anon)'
       [ 
         name: 'anon'
-        expr: '(def anon "b" (+ (* %A %b) #10))'
+        expr: '(def "anon" (slist "b") (+ (* %A %b) #10))'
       ]
     ]
     ['A']
@@ -489,7 +489,7 @@ testCases = [
       '(apply %A #2 %anon)'
       [ 
         name: 'anon'
-        expr: '(def anon "b" (+ (* %A %b) #10))'
+        expr: '(def "anon" (slist "b") (+ (* %A %b) #10))'
       ]
     ]
     ['A']
