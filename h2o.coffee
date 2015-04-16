@@ -156,6 +156,10 @@ type Number
 A Javascript [Number](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Number)
 ###
 ###
+type Date
+A Javascript [Date](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date)
+###
+###
 type Function
 A Javascript [Function](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Function)
 ###
@@ -165,11 +169,23 @@ TODO: Description goes here.
 ###
 ###
 type Frame
-A reference to a `FrameV2` object. A `Frame` can be thought of as a pointer to the result of computations such as `map()`, `reduce()`, `bind()`, `concat()`, etc. You can dereference a `Frame` using the `get()` function, which will yield a `FrameV2`. A `FrameV2` can be substituted in place of a `Frame` in all functions that accept frames.
+A reference to a `FrameV3` object. A `Frame` can be thought of as a pointer to the result of computations such as `map()`, `reduce()`, `combine()`, `append()`, etc. You can dereference a `Frame` using the `get()` function, which will yield a `FrameV3`. A `FrameV3` can be substituted in place of a `Frame` in all functions that accept frames.
 ###
 ###
 type Vector
-A reference to a `ColV2` object. A `Vector` can be thought of as a pointer to the result of computations such as `map()`, `reduce()`, `bind()`, `concat()`, etc. You can dereference a `Vector` using the `get()` function, which will yield a `ColV2`. A `ColV2` can be substituted in place of a `Frame` in all functions that accept frames.
+A reference to a `ColV3` object. A `Vector` can be thought of as a pointer to the result of computations such as `map()`, `reduce()`, `combine()`, `append()`, etc. You can dereference a `Vector` using the `get()` function, which will yield a `ColV3`. A `ColV3` can be substituted in place of a `Frame` in all functions that accept frames.
+###
+###
+type Factor
+A reference to a `ColV3` object. A `Vector` can be thought of as a pointer to the result of computations such as `map()`, `reduce()`, `combine()`, `append()`, etc. You can dereference a `Vector` using the `get()` function, which will yield a `ColV3`. A `ColV3` can be substituted in place of a `Frame` in all functions that accept frames.
+###
+###
+type Indices
+TODO
+###
+###
+type Span
+TODO
 ###
 
 lib.connect = (host='http://localhost:54321') ->
@@ -259,10 +275,10 @@ lib.connect = (host='http://localhost:54321') ->
   function getFrames
   Retrieve a list of all the frames in your cluster.
   ---
-  -> Future<FrameV2[]>
+  -> Future<FrameV3[]>
   go -> None
   ---
-  go: Error FrameV2[] -> None
+  go: Error FrameV3[] -> None
     Error-first callback.
   ---
   getFrames()
@@ -301,10 +317,10 @@ lib.connect = (host='http://localhost:54321') ->
   function getJobs
   Retrieve a list of all the jobs in your cluster.
   ---
-  -> Future<JobV2[]>
+  -> Future<JobV3[]>
   go -> None
   ---
-  go: Error JobV2[] -> None
+  go: Error JobV3[] -> None
     Error-first callback.
   ---
   getJobs()
@@ -573,7 +589,7 @@ lib.connect = (host='http://localhost:54321') ->
   # Private
   #
 
-  evaluate = (form, go) ->
+  evaluate__obsolete = (form, go) ->
     console.log form.ast
     console.log form.funs if form.funs
     post '/3/Rapids', form, (error, result) ->
@@ -586,9 +602,38 @@ lib.connect = (host='http://localhost:54321') ->
         else
           go null, result
 
+  evaluate = (form, go) ->
+    post '/3/Rapids', form, (error, result) ->
+      if error
+        go error
+      else
+        #TODO HACK - this api returns a 200 OK on failures
+        if result.error
+          go new Error result.error
+        else
+          go null, result
+
+  importFunc = method (func, go) ->
+    console.log func
+    evaluate { fun: func }, go
+
+  evaluateExpression = method (expr, go) ->
+    console.log expr
+    evaluate { ast: expr }, go
+
+  importFuncs = method (funcs, go) ->
+    imports = funcs.map (func) -> importFunc func
+    fj.join imports, (error, results) ->
+      if error
+        go error
+      else
+        go null, results
+
+  #TODO obsolete
   applyExpr = method (funs, ast, go) ->
     evaluate { funs: (encodeArray funs), ast: ast }, go
 
+  #TODO obsolete
   callExpr = method (ast, go) ->
     evaluate { ast: ast }, go
 
@@ -653,10 +698,10 @@ lib.connect = (host='http://localhost:54321') ->
     astCall '=', (astWrite key), op
 
   astBind = (keys) ->
-    astApply 'cbind', keys.map astRead
+    astApply 'combine', keys.map astRead
 
   astConcat = (keys) ->
-    astApply 'rbind', keys.map astRead
+    astApply 'concat', keys.map astRead
 
   astColNames = (key, names) ->
     astCall 'colnames=', (astRead key), (astList [astSpan 0, names.length - 1]), (astStrings names)
@@ -702,7 +747,7 @@ lib.connect = (host='http://localhost:54321') ->
       name = 'anon' + uuid()
       params = ['z']
       #TODO make transpiler accept strings
-      def = astDef name, params, transpiler.map params, func
+      def = astDef name, params, transpiler.transpile params, func
       __functionCache[ source ] =
         name: name
         ast: def
@@ -835,7 +880,7 @@ lib.connect = (host='http://localhost:54321') ->
   xs = h2o.sequence 10, 15 
   ys = h2o.sequence 20, 25
   zs = h2o.sequence 30, 35
-  frame = h2o.bind [ xs, ys, zs ]
+  frame = h2o.combine [ xs, ys, zs ]
   squares = h2o.map frame, (a) -> a * a
   squares (error, frame) ->
     if error
@@ -850,7 +895,7 @@ lib.connect = (host='http://localhost:54321') ->
   xs = h2o.sequence 10, 15 
   ys = h2o.sequence 20, 25
   zs = h2o.sequence 30, 35
-  frame = h2o.bind [ xs, ys, zs ]
+  frame = h2o.combine [ xs, ys, zs ]
   squares = h2o.map frame, (a) -> sum a
   squares (error, frame) ->
     if error
@@ -867,7 +912,7 @@ lib.connect = (host='http://localhost:54321') ->
       else
         vectorKeys = vectors.map keyOf
         try
-          op = transpiler.map vectorKeys, func
+          op = transpiler.transpile vectorKeys, func
           callExpr (astPut uuid(), op), (error, vector) ->
             if error
               go error
@@ -879,6 +924,125 @@ lib.connect = (host='http://localhost:54321') ->
 
   ###
   function apply
+  Apply a Javascript function to one or more frames.
+  ---
+  frame func -> Future<RapidsV3>
+  frames func -> Future<RapidsV3>
+  frame func go -> None
+  frames func go -> None
+  ---
+  frame: Frame
+    The frame to apply the function to.
+  frames: [Frame]
+    The frames to apply the funcion to.
+  func: Function
+    The function to apply.
+  go: Error RapidsV3 -> None
+    Error-first callback.
+  ---
+  apply()
+  Create a vector with values from 1 to 10.
+  ```
+  h2o.apply [], (-> sequence 10), (error, result) ->
+    if error
+      fail
+    else
+      h2o.print.columns result.col_names, result.head
+      h2o.removeAll ->
+        pass
+  ###
+  apply = method (arg, func, go) ->
+    frames_ = if _.isArray arg then arg else [ arg ]
+    fj.join frames_, (error, frames) ->
+      if error
+        go error
+      else
+        frameKeys = frames.map keyOf
+        try
+          [ op, procs ] = transpiler.transpile frameKeys, func
+        catch error
+          console.log func.toString()
+          return go error
+
+        importFuncs procs, (error) ->
+          if error
+            go error
+          else
+            evaluateExpression (astPut uuid(), op), go
+  ###
+  function createVector
+  Create a vector from a string or numeric vector.
+  ---
+  numbers -> Future<Vector>
+  strings -> Future<Vector>
+  numbers go -> None
+  strings go -> None
+  ---
+  numbers: [Number]
+    Array of numbers (nulls allowed, will be converted to NaNs on import)
+  strings: [String]
+    Array of strings (nulls allowed)
+  go: Error Vector -> None
+    Error-first callback.
+  ---
+  createVector(numbers)
+  Create a numeric vector from an array of numbers.
+  ```
+  values = [ 0, 1, 1, 2, 3, 5, 8, 13, 21, 34, 55 ]
+  h2o.createVector values, (error, result) ->
+    if error
+      fail
+    else
+      h2o.print.columns result.col_names, result.head
+      h2o.removeAll ->
+        pass
+  ---
+  createVector(numbersWithMissing)
+  Create a numeric vector from an array of numbers, with missing values.
+  ```
+  values = [ 0, 1, 1, 2, 3, 5, 8, null, 21, 34, 55 ]
+  h2o.createVector values, (error, result) ->
+    if error
+      fail
+    else
+      h2o.print.columns result.col_names, result.head
+      h2o.removeAll ->
+        pass
+  ---
+  createVector(strings)
+  Create a string vector from an array of strings.
+  ```
+  values = [ 'foo', 'bar', 'qux', 'quux' ]
+  h2o.createVector values, (error, result) ->
+    if error
+      fail
+    else
+      h2o.print.columns result.col_names, result.head
+      h2o.removeAll ->
+        pass
+  ---
+  createVector(stringsWithMissing)
+  Create a string vector from an array of strings, with missing values.
+  ```
+  values = [ 'foo', 'bar', null, 'quux' ]
+  h2o.createVector values, (error, result) ->
+    if error
+      fail
+    else
+      h2o.print.columns result.col_names, result.head
+      h2o.removeAll ->
+        pass
+  ###
+  createVector = method (array, go) ->
+    try
+      op = transpiler.toVector array
+    catch error
+      return go error
+
+    evaluateExpression (astPut uuid(), op), go
+
+  ###
+  function tapply
   Apply a function to a frame, column-wise.
   ---
   frame func -> Future<Frame>
@@ -895,12 +1059,12 @@ lib.connect = (host='http://localhost:54321') ->
   go: Error Frame|Vector -> None
     Error-first callback.
   ---
-  apply()
+  tapply()
   Square all numbers in all vectors in a frame.
   ```
   vector = h2o.sequence 5
-  frame = h2o.bind [ vector, vector, vector, vector, vector ]
-  h2o.apply frame, ((a) -> (a * a)), (error, result) ->
+  frame = h2o.combine [ vector, vector, vector, vector, vector ]
+  h2o.tapply frame, ((a) -> (a * a)), (error, result) ->
     if error
       fail
     else
@@ -932,7 +1096,7 @@ lib.connect = (host='http://localhost:54321') ->
   Square all numbers in all vectors in a frame.
   ```
   vector = h2o.sequence 5
-  frame = h2o.bind [ vector, vector, vector, vector, vector ]
+  frame = h2o.combine [ vector, vector, vector, vector, vector ]
   h2o.sapply frame, ((a) -> (a * a)), (error, result) ->
     if error
       fail
@@ -960,48 +1124,51 @@ lib.connect = (host='http://localhost:54321') ->
       else
         callExpr op, go
 
-  filterFrame = method (frame_, arg, func, go) ->
-    vectors_ = if _.isArray arg then arg else [ arg ]
-    fj.join [frame_].concat(vectors_), (error, [frame, vectors...]) ->
-      if error
-        go error
-      else
-        sourceKey = frame.key.name
-        vectorKeys = vectors.map keyOf
-        try
-          op = transpiler.map vectorKeys, func
-          callExpr (astPut uuid(), astFilter sourceKey, op), (error, frame) ->
-            if error
-              go error
-            else
-              go null, frame
-        catch error
-          go error
-
-  #TODO include Vector in docs
   ###
-  function slice
+  function filter
   Create a new frame from a portion of an existing frame.
   ---
-  frame begin end -> Future<Frame>
-  frame begin end go -> None
+  frame indices -> Frame
   ---
   frame: Frame
     The source frame.
-  begin: Number
-    Zero-based index at which to begin extraction.
-  end: Number
-    Zero-based index at which to end extraction. slice extracts up to but not including end.
-  go: Error Frame -> None
-    Error-first callback.
+  indices: Indices
+    The indices of the rows to be included.
   ---
-  slice(frame, 10, 20)
-  Create a frame and slice a portion.
+  filter(frame, at(10, 20, 30))
+  Slice discontiguous rows
   ```
-  vector1 = h2o.sequence 100
-  vector2 = h2o.sequence 101, 200
-  frame1 = h2o.bind [ vector1, vector2 ]
-  h2o.slice frame1, 10, 20, (error, result) ->
+  frame = h2o.apply [], -> combine sequence(100), sequence(101, 200)
+  rows = h2o.apply frame, (frame) -> filter frame, at 10, 20, 30
+  rows (error, result) ->
+    if error
+      fail
+    else
+      h2o.print.columns result.col_names, result.head
+      h2o.removeAll ->
+        pass
+  ---
+  filter(frame, at(to(10, 20)))
+  Slice contiguous rows
+  ```
+  frame = h2o.apply [], -> combine sequence(100), sequence(101, 200)
+  rows = h2o.apply frame, (frame) -> filter frame, at to 0, 10
+  rows (error, result) ->
+    if error
+      fail
+    else
+      h2o.print.columns result.col_names, result.head
+      pass
+      return
+      h2o.removeAll ->
+        pass
+  ---
+  filter(frame, at(5, to(10, 20), 25))
+  Slice contiguous and discontiguous rows
+  ```
+  frame = h2o.apply [], -> combine sequence(100), sequence(101, 200)
+  rows = h2o.apply frame, (frame) -> filter frame, at 5, to(10, 20), 25
+  rows (error, result) ->
     if error
       fail
     else
@@ -1009,39 +1176,20 @@ lib.connect = (host='http://localhost:54321') ->
       h2o.removeAll ->
         pass
   ###
-  sliceFrame = method (frame_, begin, end, go) ->
-    # TODO validate begin/end
-    # TODO use resolve()
-    resolve frame_, (error, frame) ->
-      if error
-        go error
-      else
-        sourceKey = frame.key.name
-        callExpr (astPut uuid(), astSlice sourceKey, begin, end - 1), (error, frame) ->
-          if error
-            go error
-          else
-            go null, frame
 
   ###
-  function bind
-  Bind multiple vectors together to form a new anonymous frame.
+  function combine
+  Combine multiple frames or vectors together to form a new frame.
   ---
-  vectors -> Future<Frame>
-  vectors go -> None
+  framesOrVectors... -> Frame
   ---
-  vectors: [Vector]
-    The vectors to bind together.
-  go: Error Frame -> None
-    Error-first callback.
+  framesOrVectors: [Vector|Frame]
+    The frames and/or vectors to combine together.
   ---
-  bind()
-  Create and bind three vectors into a new frame.
+  combine()
+  Create and combine three vectors into a new frame.
   ```
-  seq1 = h2o.sequence 1, 10
-  seq2 = h2o.sequence 11, 20
-  seq3 = h2o.sequence 21, 30
-  h2o.bind [ seq1, seq2, seq3 ], (error, result) ->
+  h2o.apply [], (-> combine sequence(1, 10), sequence(11, 20), sequence(21, 30)), (error, result) ->
     if error
       fail
     else
@@ -1049,13 +1197,10 @@ lib.connect = (host='http://localhost:54321') ->
       h2o.removeAll ->
         pass
   ---
-  bind() nested
-  Create and bind three vectors into a new frame.
+  combine() nested
+  Create and combine three vectors into a new frame.
   ```
-  seq1 = h2o.combine [[ 1, 10 ]]
-  seq2 = h2o.combine [[ 11, 20 ]]
-  seq3 = h2o.combine [[ 21, 30 ]]
-  h2o.bind [ h2o.bind([ seq1, seq2 ]), seq3 ], (error, result) ->
+  h2o.apply [], (-> combine(combine(sequence(1, 10), sequence(11, 20)), sequence(21, 30))), (error, result) ->
     if error
       fail
     else
@@ -1063,24 +1208,10 @@ lib.connect = (host='http://localhost:54321') ->
       h2o.removeAll ->
         pass
   ###
-  _bindVectors = method (targetKey, vectors, go) ->
-    fj.join vectors, (error, vectors) ->
-      if error
-        go error
-      else
-        vectorKeys = vectors.map keyOf
-        callExpr (astPut targetKey, astBind vectorKeys), (error, frame) ->
-          if error
-            go error
-          else
-            go null, frame
-
-  bindVectors = method (vectors, go) ->
-    _bindVectors uuid(), vectors, go
 
   ###
   function createFrame
-  Bind and name multiple vectors together to form a new named frame.
+  Combine and name multiple vectors together to form a new named frame.
   ---
   schema -> Future<Frame>
   schema go -> None
@@ -1093,10 +1224,10 @@ lib.connect = (host='http://localhost:54321') ->
   createFrame()
   Create a named frame using four arrays.
   ```
-  odd = h2o.combine [ 1, 3, 5, 7, 9 ]
-  even = h2o.combine [ 2, 4, 5, 8, 10 ]
-  prime = h2o.combine [ 2, 3, 5, 7, 11 ]
-  fibonacci = h2o.combine [ 0, 1, 1, 2, 3 ]
+  odd = h2o.vector [ 1, 3, 5, 7, 9 ]
+  even = h2o.vector [ 2, 4, 5, 8, 10 ]
+  prime = h2o.vector [ 2, 3, 5, 7, 11 ]
+  fibonacci = h2o.vector [ 0, 1, 1, 2, 3 ]
 
   schema =
     name: 'Numbers'
@@ -1130,31 +1261,27 @@ lib.connect = (host='http://localhost:54321') ->
           else
             go null, frame
 
-  #TODO include Vector in doc
+
+
   ###
-  function concat
-  Concatenate rows from multiple frames to form a new frame.
+  function append
+  Append rows from multiple frames to form a new frame.
   ---
-  frames -> Future<Frame>
-  frames go -> None
+  frames... -> Frame
   ---
   frames: [Frame]
-    The frames to concatenate.
-  go: Error Frame -> None
-    Error-first callback.
+    The frames to append.
   ---
-  concat(f1, f2)
-  Create and concatenate three frames.
+  append(f1, f2)
+  Create and append three frames.
   ```
-  odd = h2o.combine [ 1, 3, 5, 7, 9 ]
-  even = h2o.combine [ 2, 4, 5, 8, 10 ]
-  prime = h2o.combine [ 2, 3, 5, 7, 11 ]
+  odd = h2o.apply [], -> vector 1, 3, 5, 7, 9
+  even = h2o.apply [], -> vector 2, 4, 5, 8, 10
+  prime = h2o.apply [], -> vector 2, 3, 5, 7, 11
+  appended = h2o.apply [ odd, even, prime ], (odd, even, prime) ->
+    append combine(odd, even), combine(prime, even), combine(odd, prime)
 
-  frame1 = h2o.bind [ odd, even ]
-  frame2 = h2o.bind [ prime, even ]
-  frame3 = h2o.bind [ odd, prime ]
-
-  h2o.concat [ frame1, frame2, frame3 ], (error, result) ->
+  appended (error, result) ->
     if error
       fail
     else
@@ -1162,15 +1289,14 @@ lib.connect = (host='http://localhost:54321') ->
       h2o.removeAll ->
         pass
   ---
-  concat(f1, f1)
-  Concatenate a frame to itself.
+  append(f1, f1, f1)
+  Append a frame to itself.
   ```
-  odd = h2o.combine [ 1, 3, 5, 7, 9 ]
-  even = h2o.combine [ 2, 4, 5, 8, 10 ]
-
-  frame1 = h2o.bind [ odd, even ]
-
-  h2o.concat [ frame1, frame1 ], (error, result) ->
+  odd = h2o.apply [], -> vector 1, 3, 5, 7, 9
+  even = h2o.apply [], -> vector 2, 4, 5, 8, 10
+  frame = h2o.apply [ odd, even ], (odd, even) -> combine odd, even
+  repeated = h2o.apply frame, (frame) -> append frame, frame, frame
+  repeated (error, result) ->
     if error
       fail
     else
@@ -1178,17 +1304,6 @@ lib.connect = (host='http://localhost:54321') ->
       h2o.removeAll ->
         pass
   ###
-  concatFrames = method (frames_, go) ->
-    fj.join frames_, (error, frames) ->
-      if error
-        go error
-      else
-        keys = frames.map (frame) -> frame.key.name
-        callExpr (astConcat keys), (error, frame) ->
-          if error
-            go error
-          else
-            go null, frame
 
   # h2o.groupBy airlines, [ year, month ], [
   #   h2o.mean delay
@@ -1206,23 +1321,22 @@ lib.connect = (host='http://localhost:54321') ->
   groupBy = method (go) ->
     go new Error 'Not implemented'
 
+
   ###
-  function combine
-  Creates a new vector by combining individual values and/or spans.
-  The argument `elements` can be a mixed array containing numbers and spans. Spans are indicated by two-element arrays of the form `[start, end]`. For example, the array `[13, 17]` indicates a span of numbers from 13 to 17, inclusive.
+  function to
+  Create a sequence of integers.
   ---
-  elements -> Future<Vector>
-  elements go -> None
+  begin end -> Span
   ---
-  elements: [Number|[Number]]
-    The values and/or spans that need to be combined.
-  go: Error Vector -> None
-    Error-first callback.
+  begin: Number
+    Start index
+  end: Number
+    End index
   ---
-  combine()
-  Create a vector with the values `[4, 2, 42, 13, 14, 15, 16, 17]`.
+  to()
+  Create a vector with the values 10 to 20.
   ```
-  h2o.combine [4, 2, 42, [13, 17]], (error, result) ->
+  h2o.apply [], (-> vector to 10, 20), (error, result) ->
     if error
       fail
     else
@@ -1232,40 +1346,42 @@ lib.connect = (host='http://localhost:54321') ->
         pass
   ###
 
-  _combine = method (elements, go) ->
-    asts = for element in elements
-      if _.isFinite element
-        astNumber element
-      else if _.isArray element
-        [ begin, end ] = element
-        astSpan begin, end
-      else
-        throw new Error "Cannot combine element [#{element}]"
-
-    callExpr (astPut uuid(), astCall 'c', astList asts), go
-
-  combine = dispatch
-    'Array': _combine
-    'Array, Function': _combine
+  ###
+  function vector
+  Create a new vector of numbers and/or spans.
+  ---
+  elements... -> Vector
+  ---
+  elements: [Number|Span]
+    The values and/or spans that need to be combined.
+  ---
+  vector()
+  Create a vector with the values `[4, 2, 42, 13, 14, 15, 16, 17]`.
+  ```
+  h2o.apply [], (-> vector 4, 2, 42, to 13, 17), (error, result) ->
+    if error
+      fail
+    else
+      h2o.print.columns result.col_names, result.head
+      h2o.removeAll ->
+        pass
+  ###
 
   ###
   function replicate
   Replicate the values in a given vector, repeating as many times as is necessary to create a new vector of the given target length.
   ---
-  sourceVector targetLength -> Future<Vector>
-  sourceVector targetLength go -> None
+  vector length -> Vector
   ---
-  sourceVector: Vector
+  vector: Vector
     The source vector whose values to replicate.
-  targetLength: Number
+  length: Number
     The desired length of the target vector.
-  go: Error Vector -> None
-    Error-first callback.
   ---
   replicate(sequence(5), 15)
   Repeat the sequence `[1, 2, 3, 4, 5]` thrice.
   ```
-  h2o.replicate h2o.sequence(5), 15, (error, result) ->
+  h2o.apply [], (-> replicate sequence(5), 15), (error, result) ->
     if error
       fail
     else
@@ -1274,31 +1390,14 @@ lib.connect = (host='http://localhost:54321') ->
       h2o.removeAll ->
         pass
   ###
-  _replicate = method (frame_, length, go) ->
-    join frame_, go, (frame) ->
-      op = astCall(
-        'rep_len'
-        astRead keyOf frame
-        astNumber length
-      )
-      callExpr (astPut uuid(), op), go
-
-  replicate = dispatch
-    'Future, Finite': _replicate
-    'String, Finite': _replicate
-    'Future, Finite, Function': _replicate
-    'String, Finite, Function': _replicate
 
   ###
   function sequence
   Generate regular sequences.
   ---
-  end -> Future<Vector>
-  start end -> Future<Vector>
-  start end step -> Future<Vector>
-  end go -> None
-  start end go -> None
-  start end step go -> None
+  end -> Vector
+  start end -> Vector
+  start end step -> Vector
   ---
   start: Number
     The starting value of the sequence.
@@ -1306,13 +1405,11 @@ lib.connect = (host='http://localhost:54321') ->
     The end value of the sequence.
   step: Number
     Increment of the sequence.
-  go: Error Vector -> None
-    Error-first callback.
   ---
   sequence(10)
   Create a vector with values from 1 to 10.
   ```
-  h2o.sequence 10, (error, result) ->
+  h2o.apply [], (-> sequence 10), (error, result) ->
     if error
       fail
     else
@@ -1323,7 +1420,7 @@ lib.connect = (host='http://localhost:54321') ->
   sequence(11, 20)
   Create a vector with values from 11 to 20.
   ```
-  h2o.sequence 11, 20, (error, result) ->
+  h2o.apply [], (-> sequence 11, 20), (error, result) ->
     if error
       fail
     else
@@ -1334,7 +1431,7 @@ lib.connect = (host='http://localhost:54321') ->
   sequence(11, 12, 0.1)
   Create a vector with values from 11 to 12, step by 0.1.
   ```
-  h2o.sequence 11, 12, 0.1, (error, result) ->
+  h2o.apply [], (-> sequence 11, 12, 0.1), (error, result) ->
     if error
       fail
     else
@@ -1342,47 +1439,20 @@ lib.connect = (host='http://localhost:54321') ->
       h2o.removeAll ->
         pass
   ###
-
-  _sequence$3 = method (start, end, step, go) ->
-    op = astCall(
-      'seq'
-      astNumber start
-      astNumber end
-      astNumber step
-    )
-    callExpr (astPut uuid(), op), go
-
-  _sequence$1 = method (end, go) ->
-    op = astCall(
-      'seq_len'
-      astNumber end
-    )
-    callExpr (astPut uuid(), op), go
-
-  sequence = dispatch
-    'Finite': _sequence$1
-    'Finite, Finite': (start, end) -> _sequence$3 start, end, 1
-    'Finite, Finite, Finite': _sequence$3
-    'Finite, Function': _sequence$1
-    'Finite, Finite, Function': (start, end, go) -> _sequence$3 start, end, 1, go
-    'Finite, Finite, Finite, Function': _sequence$3
 
   ###
   function toFactor
   Encode a vector as a factor. The terms 'category', 'categorical column', 'enumerated type' are also used for factors.
   ---
-  vector -> Future<Vector>
-  vector go -> None
+  vector -> Factor
   ---
   vector: Vector
     The vector to be encoded.
-  go: Error Vector -> None
-    Error-first callback.
   ---
   toFactor()
   Create a factor from a vector.
   ```
-  h2o.toFactor h2o.replicate(h2o.sequence(2011, 2015), 100), (error, result) ->
+  h2o.apply [], (-> toFactor replicate sequence(2011, 2015), 100), (error, result) ->
     if error
       fail
     else
@@ -1390,33 +1460,25 @@ lib.connect = (host='http://localhost:54321') ->
       h2o.removeAll ->
         pass
   ###
-  #TODO validation
-  toFactor = method (vector_, go) ->
-    join vector_, go, (vector) ->
-      op = astCall(
-        'as.factor'
-        astRead keyOf vector
-      )
-      callExpr (astPut uuid(), op), go
 
   ###
   function toDate
   Create a date vector from a factor or a string vector.
   ---
-  vector pattern -> Future<Vector>
-  vector pattern go -> None
+  factor pattern -> Vector<Date>
+  vector pattern -> Vector<Date>
   ---
-  vector: Vector
+  factor: Factor
+    The source vector.
+  vector: Vector<String>
     The source vector.
   pattern: String
     The pattern to use for parsing dates. The pattern syntax is [documented here](http://www.joda.org/joda-time/apidocs/org/joda/time/format/DateTimeFormat.html).
-  go: Error Vector -> None
-    Error-first callback.
   ---
   toDate()
   Create a date vector from a factor.
   ```
-  h2o.toDate h2o.toFactor(h2o.replicate(h2o.combine([20101210,20101210]), 100)), "yyyymmdd", (error, result) ->
+  h2o.apply [], (-> toDate toString(replicate(vector(20101210, 20121210), 100)), "yyyymmdd"), (error, result) ->
     if error
       fail
     else
@@ -1424,32 +1486,20 @@ lib.connect = (host='http://localhost:54321') ->
       h2o.removeAll ->
         pass
   ###
-  #TODO validation
-  toDate = method (vector_, pattern, go) ->
-    join vector_, go, (vector) ->
-      op = astCall(
-        'as.Date' #TODO
-        astRead keyOf vector
-        astString pattern
-      )
-      callExpr (astPut uuid(), op), go
 
   ###
   function toString
   Create a string vector from a factor.
   ---
-  vector -> Future<Vector>
-  vector go -> None
+  factor -> Vector<String>
   ---
-  vector: Vector
-    The source vector.
-  go: Error Vector -> None
-    Error-first callback.
+  factor: Factor
+    The source factor.
   ---
   toString()
   Create a string vector from a factor.
   ```
-  h2o.toString h2o.toFactor(h2o.sequence(100)), (error, result) ->
+  h2o.apply [], (-> toString toFactor sequence(100)), (error, result) ->
     if error
       fail
     else
@@ -1457,31 +1507,23 @@ lib.connect = (host='http://localhost:54321') ->
       h2o.removeAll ->
         pass
   ###
-  #TODO validation
-  toString = method (vector_, go) ->
-    join vector_, go, (vector) ->
-      op = astCall(
-        'as.character'
-        astRead keyOf vector
-      )
-      callExpr (astPut uuid(), op), go
 
   ###
-  function toNumeric
-  Create a numeric vector from a non-numeric vector.
+  function toNumber
+  Create a numeric vector from a factor or a non-numeric vector.
   ---
-  vector -> Future<Vector>
-  vector go -> None
+  vector -> Vector<Number>
+  factor -> Vector<Number>
   ---
   vector: Vector
     The source vector.
-  go: Error Vector -> None
-    Error-first callback.
+  factor: Factor
+    The source factor.
   ---
-  toNumeric()
+  toNumber()
   Create a numeric vector from a factor.
   ```
-  h2o.toNumeric h2o.toFactor(h2o.sequence(100)), (error, result) ->
+  h2o.apply [], (-> toNumber toFactor sequence 100) , (error, result) ->
     if error
       fail
     else
@@ -1489,84 +1531,52 @@ lib.connect = (host='http://localhost:54321') ->
       h2o.removeAll ->
         pass
   ###
-  #TODO validation
-  toNumeric = method (vector_, go) ->
-    join vector_, go, (vector) ->
-      op = astCall(
-        'as.numeric'
-        astRead keyOf vector
-      )
-      callExpr (astPut uuid(), op), go
 
   ###
   function multiply
   Matrix-multiply two numeric frames. The number of columns on the left frame must equal the number of rows in the right frame.
   ---
-  frame1 frame2 -> Future<Frame>
-  frame1 frame2 go -> None
+  frame1 frame2 -> Frame
   ---
   frame1: Frame
     A numeric frame.
   frame2: Frame
     A numeric frame.
-  go: Error Frame -> None
-    Error-first callback.
   ---
   multiply()
-  Multiply two frames.
+  Matrix-multiply two frames.
   ```
-  vector = h2o.sequence 5
-  frame = h2o.bind [ vector, vector, vector, vector, vector ]
-  h2o.multiply frame, frame, (error, result) ->
+  seq = h2o.apply [], -> sequence 5
+  frame = h2o.apply seq, (a) -> combine a, a, a, a, a
+  h2o.apply frame, ((a) -> multiply a, a), (error, result) ->
     if error
       fail
     else
       h2o.print.columns result.col_names, result.head
       pass
   ###
-  multiply = method (frame1_, frame2_, go) ->
-    join frame1_, frame2_, go, (frame1, frame2) ->
-      callExpr(
-        astPut uuid(), astCall(
-          'x'
-          astRead keyOf frame1
-          astRead keyOf frame2
-        )
-        go
-      )
+
   ###
   function transpose
   Transpose a numeric frame.
   ---
-  frame -> Future<Frame>
-  frame go -> None
+  frame -> Frame
   ---
   frame: Frame
     A numeric frame.
-  go: Error Frame -> None
-    Error-first callback.
   ---
   transpose()
   Transpose a frame.
   ```
-  vector = h2o.sequence 5
-  frame = h2o.bind [ vector, vector, vector, vector, vector ]
-  h2o.transpose frame, (error, result) ->
+  seq = h2o.apply [], -> sequence 5
+  frame = h2o.apply seq, (a) -> combine a, a, a, a, a
+  h2o.apply frame, ((a) -> transpose a), (error, result) ->
     if error
       fail
     else
       h2o.print.columns result.col_names, result.head
       pass
   ###
-  transpose = method (frame_, go) ->
-    join frame_, go, (frame) ->
-      callExpr(
-        astPut uuid(), astCall(
-          't'
-          astRead keyOf frame
-        )
-        go
-      )
 
   # Files
   importFile: importFile
@@ -1576,6 +1586,7 @@ lib.connect = (host='http://localhost:54321') ->
 
   # Frames
   createFrame: createFrame
+  createVector: createVector
   importFrame: importFrame
   splitFrame: splitFrame
   getFrames: getFrames
@@ -1623,27 +1634,12 @@ lib.connect = (host='http://localhost:54321') ->
   about: about
 
   # Local
-  bind: bindVectors
   select: selectVector
   map: mapVectors
-  apply: applyToFrame
+  apply: apply
   sapply: sapplyToFrame
-  filter: filterFrame
-  slice: sliceFrame
-  concat: concatFrames
   resolve: resolve
   # groupBy: groupBy
-  sequence: sequence
-  replicate: replicate
-  combine: combine
-  multiply: multiply
-  transpose: transpose
-
-  # Coercion
-  toFactor: toFactor
-  toDate: toDate
-  toString: toString
-  toNumeric: toNumeric
 
   # Types
   error: H2OError
