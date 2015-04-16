@@ -1073,11 +1073,21 @@ sexpr_nan = ->
 sexpr_lookup = (identifier) ->
   "%#{identifier}"
 
+_sexpr_strings = (strings) ->
+  args = for string in strings
+    if string? then sexpr_string string else sexpr_null()
+  sexpr_apply 'slist', args
+
 sexpr_strings = (strings...) ->
-  sexpr_apply 'slist', strings.map sexpr_string
+  _sexpr_strings strings
+
+_sexpr_doubles = (numbers) ->
+  args = for number in numbers
+    if number? then sexpr_number number else sexpr_nan()
+  sexpr_apply 'dlist', args
 
 sexpr_doubles = (numbers...) ->
-  sexpr_apply 'dlist', numbers.map sexpr_number
+  _sexpr_doubles numbers
 
 sexpr_span = (begin, end) ->
   sexpr_call ':', begin, end
@@ -1362,6 +1372,37 @@ transpile = (symbols, lambda) ->
     #console.log dump expression
     throw error
 
+toVector = (array) ->
+  throw new Error 'Not an array.' unless _.isArray array
+
+  hasNumber = no
+  hasString = no
+  message = 'Cannot import heterogeneous arrays.'
+
+  vector = for element, i in array
+    if _.isFinite element
+      hasNumber = yes
+      if hasString
+        throw new Error message
+      else
+        element
+    else if _.isString element
+      hasString = yes
+      if hasNumber
+        throw new Error message
+      else
+        element
+    else
+      if element?
+        throw new Error message
+      else
+        null
+
+  if hasNumber
+    sexpr_call 'c', _sexpr_doubles vector
+  else # String
+    sexpr_call 'c', _sexpr_strings vector
+
 #
 # Notes
 # =====
@@ -1383,3 +1424,4 @@ transpile = (symbols, lambda) ->
 
 module.exports =
   transpile: transpile
+  toVector: toVector
