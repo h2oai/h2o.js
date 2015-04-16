@@ -1,6 +1,6 @@
 _ = require 'lodash'
 test = require 'tape'
-transpile = require '../americano.js'
+transpiler = require '../americano.js'
 
 testCases = [
   [
@@ -343,7 +343,7 @@ testCases = [
     'select using indices/spans'
     '([ %A "null" (llist #10 #20 (: #30 #40)))'
     ['A']
-    (a) -> select a, indices 10, 20, span 30, 40
+    (a) -> select a, at 10, 20, to 30, 40
   ]
   [
     'select using expression'
@@ -361,13 +361,19 @@ testCases = [
     'filter using indices/spans'
     '([ %A (llist #10 #20 (: #30 #40)) "null")'
     ['A']
-    (a) -> filter a, indices 10, 20, span 30, 40
+    (a) -> filter a, at 10, 20, to 30, 40
   ]
   [
     'filter using expression'
     '([ %A (g ([ %A "null" (slist "foo")) #10) "null")'
     ['A']
     (a) -> filter a, a.foo > 10
+  ]
+  [
+    'slice'
+    '([ %A (g ([ %A "null" (slist "foo")) #10) (llist #10 #20 (: #30 #40)))'
+    ['A']
+    (a) -> slice a, a.foo > 10, at 10, 20, to 30, 40
   ]
   [
     'length'
@@ -382,16 +388,16 @@ testCases = [
     (a) -> width a
   ]
   [
-    'bind'
+    'combine'
     '(cbind %A %B %C %D)'
     ['A', 'B', 'C', 'D']
-    (a, b, c, d) -> bind a, b, c, d
+    (a, b, c, d) -> combine a, b, c, d
   ]
   [
-    'concat'
+    'append'
     '(rbind %A %B %C %D)'
     ['A', 'B', 'C', 'D']
-    (a, b, c, d) -> concat a, b, c, d
+    (a, b, c, d) -> append a, b, c, d
   ]
   [
     'replicate'
@@ -400,22 +406,22 @@ testCases = [
     (a) -> replicate a, 1000
   ]
   [
-    'span'
+    'to'
     '(: #10 #20)'
     []
-    -> span 10, 20
+    -> to 10, 20
   ]
   [
-    'combine numbers'
+    'vector'
     '(c #1 #2 #3)'
     []
-    -> combine 1, 2, 3
+    -> vector 1, 2, 3
   ]
   [
-    'combine numbers and spans'
-    '(c #1 #2 #3 (: #10 #20))'
+    'vector with spans'
+    '(c #7 #8 #9 (: #10 #20) #21)'
     []
-    -> combine 1, 2, 3, span 10, 20
+    -> vector 7, 8, 9, (to 10, 20), 21
   ]
   [
     'sequence() fails without args'
@@ -494,10 +500,10 @@ testCases = [
 test 'transpile', (t) ->
   for [ message, expected, symbols, func ] in testCases
     if expected is null
-      t.throws (-> transpile(symbols, func)), undefined, message
+      t.throws (-> transpiler.transpile(symbols, func)), undefined, message
     else if _.isArray expected
       [ expectedAst, expectedFuncs ] = expected
-      [ actualAst, actualFuncs ] = transpile symbols, func
+      [ actualAst, actualFuncs ] = transpiler.transpile symbols, func
       ast = expectedAst
       t.equal actualFuncs.length, expectedFuncs.length, message + ' (func count)'
       for el, i in expectedFuncs
@@ -506,7 +512,7 @@ test 'transpile', (t) ->
         ast = ast.split(el.name).join(al.name)
       t.equal ast, actualAst, message
     else
-      [ actualAst, actualFuncs] = transpile symbols, func
+      [ actualAst, actualFuncs] = transpiler.transpile symbols, func
       t.equal actualAst, expected, message
 
   t.end()
