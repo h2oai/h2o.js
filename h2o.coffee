@@ -589,19 +589,6 @@ lib.connect = (host='http://localhost:54321') ->
   # Private
   #
 
-  evaluate__obsolete = (form, go) ->
-    console.log form.ast
-    console.log form.funs if form.funs
-    post '/3/Rapids', form, (error, result) ->
-      if error
-        go error
-      else
-        #TODO HACK - this api returns a 200 OK on failures
-        if result.error
-          go new Error result.error
-        else
-          go null, result
-
   evaluate = (form, go) ->
     post '/3/Rapids', form, (error, result) ->
       if error
@@ -617,10 +604,6 @@ lib.connect = (host='http://localhost:54321') ->
     console.log func
     evaluate { fun: func }, go
 
-  evaluateExpression = method (expr, go) ->
-    console.log expr
-    evaluate { ast: expr }, go
-
   importFuncs = method (funcs, go) ->
     imports = funcs.map (func) -> importFunc func
     fj.join imports, (error, results) ->
@@ -628,6 +611,10 @@ lib.connect = (host='http://localhost:54321') ->
         go error
       else
         go null, results
+
+  evaluateExpression = method (expr, go) ->
+    console.log expr
+    evaluate { ast: expr }, go
 
   #TODO obsolete
   applyExpr = method (funs, ast, go) ->
@@ -758,7 +745,7 @@ lib.connect = (host='http://localhost:54321') ->
   #
 
   ###
-  function select
+  function select_obsolete
   Get a reference to a vector in a frame by label or index.
   ---
   frame label -> Future<Vector>
@@ -1125,15 +1112,112 @@ lib.connect = (host='http://localhost:54321') ->
         callExpr op, go
 
   ###
-  function filter
-  Create a new frame from a portion of an existing frame.
+  function select
+  Create a new frame using one or more columns from an existing frame.
   ---
   frame indices -> Frame
+  frame include -> Frame
+  ---
+  frame: Frame
+    The source frame.
+  indices: Indices
+    The indices of the columns to be included.
+  include: Boolean
+    `true` to include a row, else `false`
+  ---
+  Select column using member
+  Select column using member
+  ```
+  airlines = h2o.importFrame path: '~/airlines/AirlinesTrain.csv.zip'
+  origin = h2o.apply airlines, (airlines) -> airlines.Origin
+  origin (error, result) ->
+    if error
+      fail
+    else
+      h2o.print.columns result.col_names, result.head
+      h2o.removeAll ->
+        pass
+  ---
+  Select column using member index
+  Select column using member index
+  ```
+  airlines = h2o.importFrame path: '~/airlines/AirlinesTrain.csv.zip'
+  origin = h2o.apply airlines, (airlines) -> airlines[7]
+  origin (error, result) ->
+    if error
+      fail
+    else
+      h2o.print.columns result.col_names, result.head
+      h2o.removeAll ->
+        pass
+  ---
+  Select column using member label
+  Select column using member label
+  ```
+  airlines = h2o.importFrame path: '~/airlines/AirlinesTrain.csv.zip'
+  origin = h2o.apply airlines, (airlines) -> airlines['Origin']
+  origin (error, result) ->
+    if error
+      fail
+    else
+      h2o.print.columns result.col_names, result.head
+      h2o.removeAll ->
+        pass
+  ---
+  Select columns using member labels
+  Select columns using member labels
+  ```
+  airlines = h2o.importFrame path: '~/airlines/AirlinesTrain.csv.zip'
+  originAndDest = h2o.apply airlines, (airlines) -> select airlines, labels 'Origin', 'Dest'
+  originAndDest (error, result) ->
+    if error
+      fail
+    else
+      h2o.print.columns result.col_names, result.head
+      h2o.removeAll ->
+        pass
+  ---
+  Select columns using indices
+  Select columns using indices
+  ```
+  airlines = h2o.importFrame path: '~/airlines/AirlinesTrain.csv.zip'
+  columns = h2o.apply airlines, (airlines) -> select airlines, at 1, to 4, 6
+  columns (error, result) ->
+    if error
+      fail
+    else
+      h2o.print.columns result.col_names, result.head
+      h2o.removeAll ->
+        pass
+  ---
+  Select columns using precomputed predicates
+  Select columns using precomputed predicates
+  ```
+  airlines = h2o.importFrame path: '~/airlines/AirlinesTrain.csv.zip'
+  everyOther = h2o.apply [], -> replicate vector(0, 1), 12
+  columns = h2o.apply [airlines, everyOther], (a, eo) -> select a, eo
+  columns (error, result) ->
+    if error
+      fail
+    else
+      h2o.print.columns result.col_names, result.head
+      h2o.removeAll ->
+        pass
+  ###
+
+  ###
+  function filter
+  Create a new frame using one or more rows from an existing frame.
+  ---
+  frame indices -> Frame
+  frame include -> Frame
   ---
   frame: Frame
     The source frame.
   indices: Indices
     The indices of the rows to be included.
+  include: Boolean
+    `true` to include a row, else `false`
   ---
   filter(frame, at(10, 20, 30))
   Slice discontiguous rows
@@ -1168,6 +1252,32 @@ lib.connect = (host='http://localhost:54321') ->
   ```
   frame = h2o.apply [], -> combine sequence(100), sequence(101, 200)
   rows = h2o.apply frame, (frame) -> filter frame, at 5, to(10, 20), 25
+  rows (error, result) ->
+    if error
+      fail
+    else
+      h2o.print.columns result.col_names, result.head
+      h2o.removeAll ->
+        pass
+  ---
+  filter(frame, predicate)
+  Filter using predicates.
+  ```
+  frame = h2o.apply [], -> combine sequence(100), sequence(101, 200)
+  rows = h2o.apply frame, (frame) -> filter frame, frame[0] % 2 is 0
+  rows (error, result) ->
+    if error
+      fail
+    else
+      h2o.print.columns result.col_names, result.head
+      h2o.removeAll ->
+        pass
+  ---
+  filter(frame, vector)
+  Filter using precomputed predicates.
+  ```
+  frame = h2o.apply [], -> combine sequence(100), replicate vector(0, 1), 100
+  rows = h2o.apply frame, (frame) -> filter frame, frame[1]
   rows (error, result) ->
     if error
       fail

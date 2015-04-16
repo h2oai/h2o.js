@@ -140,7 +140,7 @@ exportExamples = (outputDir, functions) ->
       throw new Error "Bad characters in example title [#{title}]" unless /^[\w,\(\)\. -]+$/g.test title
 
       coffeescript = createRunnableExample title, code
-      write (path.join outputDir, "#{title}.coffee"), coffeescript
+      write (path.join outputDir, "#{title.toLowerCase().replace /\s+/g, '_'}.coffee"), coffeescript
 
       # Automatically compiled by package.json start task
       #javascript = compileCoffee coffeescript
