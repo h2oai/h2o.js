@@ -585,8 +585,29 @@ lib.connect = (host='http://localhost:54321') ->
   about = method (go) ->
     get '/3/About', go
 
+  getSchemas = method (go) ->
+    get '/3/Metadata/schemas', unwrap go, (result) -> result.schemas
+
+  getSchema = method (name, go) ->
+    get "/3/Metadata/schemas/#{enc name}", unwrap go, (result) -> _.head result.schemas
+
+  getEndpoints = method (go) ->
+    get '/3/Metadata/endpoints', unwrap go, (result) -> result.routes
+
+  getEndpoint = method (index, go) ->
+    get "/3/Metadata/endpoints/#{index}", unwrap go, (result) -> _.head result.routes
+
+  remove = method (key, go) ->
+    del "/3/DKV/#{enc key}", go
+
+  removeAll = method (go) ->
+    del '/3/DKV', go
+
+  shutdown = method (go)->
+    post "/3/Shutdown", {}, go
+
   #
-  # Private
+  # Exec
   #
 
   evaluate = (form, go) ->
@@ -617,33 +638,8 @@ lib.connect = (host='http://localhost:54321') ->
     evaluate { ast: expr }, go
 
   #TODO obsolete
-  applyExpr = method (funs, ast, go) ->
-    evaluate { funs: (encodeArray funs), ast: ast }, go
-
-  #TODO obsolete
   callExpr = method (ast, go) ->
     evaluate { ast: ast }, go
-
-  getSchemas = method (go) ->
-    get '/3/Metadata/schemas', unwrap go, (result) -> result.schemas
-
-  getSchema = method (name, go) ->
-    get "/3/Metadata/schemas/#{enc name}", unwrap go, (result) -> _.head result.schemas
-
-  getEndpoints = method (go) ->
-    get '/3/Metadata/endpoints', unwrap go, (result) -> result.routes
-
-  getEndpoint = method (index, go) ->
-    get "/3/Metadata/endpoints/#{index}", unwrap go, (result) -> _.head result.routes
-
-  remove = method (key, go) ->
-    del "/3/DKV/#{enc key}", go
-
-  removeAll = method (go) ->
-    del '/3/DKV', go
-
-  shutdown = method (go)->
-    post "/3/Shutdown", {}, go
 
   #
   # Expression-building
@@ -683,12 +679,6 @@ lib.connect = (host='http://localhost:54321') ->
 
   astPut = (key, op) ->
     astCall '=', (astWrite key), op
-
-  astBind = (keys) ->
-    astApply 'combine', keys.map astRead
-
-  astConcat = (keys) ->
-    astApply 'concat', keys.map astRead
 
   astColNames = (key, names) ->
     astCall 'colnames=', (astRead key), (astList [astSpan 0, names.length - 1]), (astStrings names)
