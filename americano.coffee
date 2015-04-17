@@ -1073,27 +1073,21 @@ sexpr_nan = ->
 sexpr_lookup = (identifier) ->
   "%#{identifier}"
 
-_sexpr_strings = (strings) ->
+sexpr_strings = (strings) ->
   args = for string in strings
     if string? then sexpr_string string else sexpr_null()
   sexpr_apply 'slist', args
 
-sexpr_strings = (strings...) ->
-  _sexpr_strings strings
-
-_sexpr_doubles = (numbers) ->
+sexpr_doubles = (numbers) ->
   args = for number in numbers
     if number? then sexpr_number number else sexpr_nan()
   sexpr_apply 'dlist', args
-
-sexpr_doubles = (numbers...) ->
-  _sexpr_doubles numbers
 
 sexpr_span = (begin, end) ->
   sexpr_call ':', begin, end
 
 sexpr_def = (name, params, body) ->
-  sexpr_call 'def', (sexpr_string name), (_sexpr_strings params), body
+  sexpr_call 'def', (sexpr_string name), (sexpr_strings params), body
 
 SExpr = (context) ->
   Nodes =
@@ -1233,11 +1227,11 @@ SExpr = (context) ->
             else
               throw new Error "Property accessor is not an integer: [#{property.value}]."
           else
-            sexpr_call '[', (sexpr object), sexpr_null(), (sexpr_strings property.value)
+            sexpr_call '[', (sexpr object), sexpr_null(), (sexpr_strings [property.value])
         else
           sexpr_call '[', (sexpr object), sexpr_null(), (sexpr property)
       else
-        sexpr_call '[', (sexpr object), sexpr_null(), (sexpr_strings property.name)
+        sexpr_call '[', (sexpr object), sexpr_null(), (sexpr_strings [property.name])
 
     YieldExpression: null
     ComprehensionExpression: null
@@ -1399,9 +1393,9 @@ toVector = (array) ->
         null
 
   if hasNumber
-    sexpr_call 'c', _sexpr_doubles vector
+    sexpr_call 'c', sexpr_doubles vector
   else # String
-    sexpr_call 'c', _sexpr_strings vector
+    sexpr_call 'c', sexpr_strings vector
 
 #
 # Notes
