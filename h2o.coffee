@@ -637,102 +637,9 @@ lib.connect = (host='http://localhost:54321') ->
       else
         go null, results
 
-  evaluateExpression = method (expr, go) ->
+  evaluateExpression = method (key, expr, go) ->
     console.log expr
-    evaluate { ast: expr }, go
-
-  #TODO obsolete
-  callExpr = method (ast, go) ->
-    evaluate { ast: ast }, go
-
-  #
-  # Expression-building
-  #
-
-  whitespace = /\s+/
-
-  astApply = (op, args) ->
-    "(#{[op].concat(args).join ' '})"
-
-  astCall = (op, args...) ->
-    astApply op, args
-
-  astString = (string) ->
-    JSON.stringify string
-
-  astNumber = (number) ->
-    "##{number}"
-
-  astWrite = (key) ->
-    "!#{astString key}"
-
-  astRead = (key) ->
-    if whitespace.test key then astString key else "%#{key}"
-
-  astList = (list) ->
-    "{#{ list.join ';' }}"
-
-  astSpan = (begin, end) ->
-    astCall ':', (astNumber begin), (astNumber end)
-
-  astStrings = (strings) ->
-    astList (astString string for string in strings)
-
-  astNumbers = (numbers) ->
-    astList (astNumber number for number in numbers)
-
-  astPut = (key, op) ->
-    astCall '=', (astWrite key), op
-
-  astColNames = (key, names) ->
-    astCall 'colnames=', (astRead key), (astList [astSpan 0, names.length - 1]), (astStrings names)
-
-  astBlock = (ops...) ->
-    astApply ',', ops
-
-  astNull = ->
-    '"null"'
-
-  _astSlice = (key, rowOp, colOp) ->
-    astCall '[', (astRead key), (rowOp ? astNull()), (colOp ? astNull())
-
-  astFilter = (key, op) ->
-    # astCall '[', (astRead key), op, astNull()
-    _astSlice key, op, null
-
-  astPluck = (key, index) ->
-    #TODO index - 1?
-    # ([ %frame "null" #index)
-    #astCall '[', (astRead key), astNull(), (astNumber index)
-    _astSlice key, null, astNumber index
-
-  astSlice = (key, begin, end) ->
-    #TODO end - 1?
-    # ([ %frame {(: #begin #end)} "null")
-    # astCall '[', (astRead key), (astList [ astSpan begin, end ]), astNull()
-    _astSlice key, (astList [ astSpan begin, end ]), null
-
-  astDef = (key, params, op) ->
-    astCall(
-      'def'
-      key
-      astList params
-      op
-    )
-
-  __functionCache = {}
-  astFunc = (func) ->
-    if cached = __functionCache[ source = func.toString() ]
-      name: cached.name
-    else
-      name = 'anon' + uuid()
-      params = ['z']
-      #TODO make transpiler accept strings
-      def = astDef name, params, transpiler.transpile params, func
-      __functionCache[ source ] =
-        name: name
-        ast: def
-
+    evaluate { ast: "(= !#{JSON.stringify key} #{expr})" }, go
 
   #
   # Data munging
@@ -863,7 +770,7 @@ lib.connect = (host='http://localhost:54321') ->
           if error
             go error
           else
-            evaluateExpression (astPut uuid(), op), go
+            evaluateExpression uuid(), op, go
   ###
   function createVector
   Create a vector from a string or numeric vector.
@@ -934,7 +841,7 @@ lib.connect = (host='http://localhost:54321') ->
     catch error
       return go error
 
-    evaluateExpression (astPut uuid(), op), go
+    evaluateExpression uuid(), op, go
 
   ###
   function map
@@ -1218,60 +1125,6 @@ lib.connect = (host='http://localhost:54321') ->
       h2o.removeAll ->
         pass
   ###
-
-  ###
-  function createFrame
-  Combine and name multiple vectors together to form a new named frame.
-  ---
-  schema -> Future<Frame>
-  schema go -> None
-  ---
-  schema: Object
-    An object of the form `{ name: 'Frame Name', columns: { "Column 1 Name": vector_1 , "Column 2 Name": vector_2, ... "Column N Name": vector_N } }`
-  go: Error Frame -> None
-    Error-first callback.
-  ---
-  createFrame()
-  Create a named frame using four arrays.
-  ```
-  odd = h2o.vector [ 1, 3, 5, 7, 9 ]
-  even = h2o.vector [ 2, 4, 5, 8, 10 ]
-  prime = h2o.vector [ 2, 3, 5, 7, 11 ]
-  fibonacci = h2o.vector [ 0, 1, 1, 2, 3 ]
-
-  schema =
-    name: 'Numbers'
-    columns:
-      'Odd': odd
-      'Even': even
-      'Prime': prime
-      'Fibonacci': fibonacci
-
-  h2o.createFrame schema, (error, result) ->
-    if error
-      fail
-    else
-      h2o.print.columns result.col_names, result.head
-      h2o.removeAll ->
-        pass
-  ###
-  createFrame = method (parameters, go) ->
-    { name, columns } = parameters
-
-    columnNames = _.keys columns
-    vectors_ = _.values columns
-
-    _bindVectors name, vectors_, (error, frame) ->
-      if error
-        go error
-      else
-        callExpr (astColNames frame.key.name, columnNames), (error, frame) ->
-          if error
-            go error
-          else
-            go null, frame
-
-
 
   ###
   function append
@@ -1647,7 +1500,6 @@ lib.connect = (host='http://localhost:54321') ->
   parseFiles: parseFiles
 
   # Frames
-  createFrame: createFrame
   createVector: createVector
   importFrame: importFrame
   splitFrame: splitFrame
