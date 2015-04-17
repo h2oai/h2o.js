@@ -2,7 +2,7 @@ _ = require 'lodash'
 test = require 'tape'
 transpiler = require '../americano.js'
 
-testCases = [
+transpileTestCases = [
   [
     'Fails when arg is not a function'
     null
@@ -606,7 +606,8 @@ testCases = [
 ]
 
 test 'transpile', (t) ->
-  for [ message, expected, symbols, func ] in testCases
+  for [ title, expected, symbols, func ] in transpileTestCases
+    message = 'transpile: ' + title
     if expected is null
       t.throws (-> transpiler.transpile(symbols, func)), undefined, message
     else if _.isArray expected
@@ -624,3 +625,84 @@ test 'transpile', (t) ->
       t.equal actualAst, expected, message
 
   t.end()
+
+
+evaluationTestCases = [
+  [ 'undefined', undefined, -> undefined ]
+  [ 'null', ((a) -> a is null), -> null ]
+  [ 'NaN', ((a) -> isNaN a), -> NaN ]
+  [ 'Infinity', Infinity, -> Infinity ]
+  [ 'true', true, -> true ]
+  [ 'false', false, -> false ]
+  [ '0', 0, -> 0 ]
+  [ '1', 1, -> 1 ]
+  [ 'string', 'foo', -> 'foo' ]
+  [ 'Unary !', not true, -> not true ]
+  [ 'Unary +', +"100", -> +"100" ]
+  [ 'Unary -', -10, -> -10 ]
+  [ 'Unary ~', ~9, -> ~9 ]
+  [ 'Unary typeof', (typeof 'foo'), -> typeof 'foo' ]
+  [ 'Unary void', undefined, -> undefined ]
+  [ 'Unary delete', true, -> delete 10 ]
+  [ 'Binary +', 42 + 2, -> 42 + 2 ]
+  [ 'Binary -', 42 - 2, -> 42 - 2 ]
+  [ 'Binary *', 42 * 2, -> 42 * 2 ]
+  [ 'Binary /', 42 / 2, -> 42 / 2 ]
+  [ 'Binary %', 42 % 10, -> 42 % 10 ]
+  [ 'Binary ==', true, -> `"42" == 42` ]
+  [ 'Binary !=', false, -> `"42" != 42` ]
+  [ 'Binary ===', false, -> "42" is 42 ]
+  [ 'Binary !==', true, -> "42" isnt 42 ]
+  [ 'Binary <', 42 < 420, -> 42 < 420 ]
+  [ 'Binary <=', 42 <= 42, -> 42 <= 42 ]
+  [ 'Binary >', 42 > 41, -> 42 > 41 ]
+  [ 'Binary >=', 42 >= 42, -> 42 >= 42 ]
+  [ 'Binary <<', 9 << 2, -> 9 << 2 ]
+  [ 'Binary >>', -9 >> 2, -> -9 >> 2 ]
+  [ 'Binary >>>', -9 >>> 2, -> -9 >>> 2 ]
+  [ 'Binary |', -2 | -3, -> -2 | -3 ]
+  [ 'Binary ^', 14 ^ 9, -> 14 ^ 9 ]
+  [ 'Binary &', 1 & 2 & 8, -> 1 & 2 & 8 ]
+  [ 'Binary in', 'PI' of Math, -> 'PI' of Math ]
+  [ 'Logical false || false', false or false, -> false or false ]
+  [ 'Logical false || true', false or true, -> false or true ]
+  [ 'Logical true || false', true or false, -> true or false ]
+  [ 'Logical true || true', true or true, -> true or true ]
+  [ 'Logical false && false', false and false, -> false and false ]
+  [ 'Logical false && true', false and true, -> false and true ]
+  [ 'Logical true && false', true and false, -> true and false ]
+  [ 'Logical true && true', true and true, -> true and true ]
+  [ 'Ternary consequent', 'foo', -> return (if 'foo' is 'foo' then 'foo' else 'bar') ]
+  [ 'Ternary alternate', 'bar', -> return (if 'foo' is 'bar' then 'foo' else 'bar') ]
+  [ 'isFinite()', (isFinite Infinity), -> isFinite Infinity ]
+  [ 'isNaN()', (isNaN NaN), -> isNaN NaN ]
+  [ 'parseFloat()', (parseFloat '42.424242'), -> parseFloat '42.424242' ]
+  [ 'parseInt()', (parseInt '42', 10), -> parseInt '42', 10 ]
+  [ 'String.function()', 'FOO'.toLowerCase(), -> 'FOO'.toLowerCase() ]
+  [ 'String.function().function()', 'FOO'.toLowerCase().toUpperCase(), -> 'FOO'.toLowerCase().toUpperCase() ]
+  [ 'Number.PROPERTY', (Number.isFinite Number.POSITIVE_INFINITY), -> Number.isFinite Number.POSITIVE_INFINITY ]
+  [ 'Number.function()', ((42.42424242).toFixed 2), -> (42.42424242).toFixed 2 ]
+  [ 'Math.PROPERTY', (Math.PI.toFixed 2), -> Math.PI.toFixed 2 ]
+  [ 'Math.function', (Math.floor 42.424242), -> Math.floor 42.424242 ]
+  [ 'Undefined function', null, -> foo 10 ]
+  [ 'Undefined variable', null, -> parseFloat foo ]
+  [ 'Undefined member', null, -> String.foo.toString() ]
+  [ 'Undefined property', null, -> String['foo'].toString() ]
+  [ 'Undefined object', null, -> foo.bar 10 ]
+  [ 'undefined.function()', null, -> (undefined).toString() ]
+  [ 'null.function()', null, -> (null).toString() ]
+]
+
+test 'evaluate', (t) ->
+  for [ title, expected, input ] in evaluationTestCases
+    message = 'evaluate: ' + title
+    { expression } = transpiler.parse input
+    if expected is null
+      t.throws (-> transpiler.evaluate expression), undefined, message
+    else
+      if _.isFunction expected
+        t.ok expected(transpiler.evaluate expression), message
+      else
+        t.equal (transpiler.evaluate expression), expected, message
+  t.end()
+

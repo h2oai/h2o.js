@@ -644,6 +644,134 @@ ComprehensionIf = 'ComprehensionIf'
 Identifier = 'Identifier'
 Literal = 'Literal'
 
+#
+# Constant-expression evaluation.
+# 
+# Required for supporting array expressions, operations, and coercion to 
+#   H2O vectors and typed lists.
+#
+
+Evaluators =
+  UnaryExpression: (node) ->
+    { operator, prefix, argument } = node
+    if prefix
+      switch operator
+        when '!'
+          not ev argument
+        when '+'
+          +(ev argument)
+        when '-'
+          -(ev argument)
+        when '~'
+          ~(ev argument)
+        when 'typeof'
+          typeof ev argument
+        when 'void'
+          undefined
+        when 'delete'
+          delete ev argument
+        else
+          throw new Error "Unsupported #{node.type} prefix operator [#{operator}]"
+    else
+      throw new Error "Unsupported #{node.type} postfix operator [#{operator}]"
+  BinaryExpression: (node) ->
+    { operator, left, right } = node
+    switch operator
+      when '+'
+        (ev left) + (ev right)
+      when '-'
+        (ev left) - (ev right)
+      when '*'
+        (ev left) * (ev right)
+      when '/'
+        (ev left) / (ev right)
+      when '%'
+        (ev left) % (ev right)
+      when '=='
+        `(ev(left) == ev(right))`
+      when '!='
+        `(ev(left) != ev(right))`
+      when '==='
+        (ev left) is (ev right)
+      when '!=='
+        (ev left) isnt (ev right)
+      when '<'
+        (ev left) < (ev right)
+      when '<='
+        (ev left) <= (ev right)
+      when '>'
+        (ev left) > (ev right)
+      when '>='
+        (ev left) >= (ev right)
+      when '<<'
+        (ev left) << (ev right)
+      when '>>'
+        (ev left) >> (ev right)
+      when '>>>'
+        (ev left) >>> (ev right)
+      when '|'
+        (ev left) | (ev right)
+      when '^'
+        (ev left) ^ (ev right)
+      when '&'
+        (ev left) & (ev right)
+      when 'in'
+        (ev left) of (ev right)
+      when 'instanceof'
+        (ev left) instanceof (ev right)
+      else
+        # '..'
+        throw new Error "Unsupported #{node.type} operator [#{operator}]"
+
+  LogicalExpression: (node) ->
+    { operator, left, right } = node
+    switch operator
+      when '||'
+        (ev left) or (ev right)
+      when '&&'
+        (ev left) and (ev right)
+      else
+        throw new Error "Unsupported #{node.type} operator [#{operator}]"
+
+  ConditionalExpression: (node) ->
+    { test, consequent, alternate } = node
+    if ev test then ev consequent else ev alternate
+ 
+  CallExpression: (node) ->
+    { callee, arguments: args } = node
+
+    if callee.type is MemberExpression
+      { object, property, computed } = callee
+      obj = ev object
+      (if computed then obj[ev property] else obj[property.name]).apply obj, (ev arg for arg in args)
+    else
+      (ev callee).apply null, (ev arg for arg in args)
+
+  MemberExpression: (node) ->
+    { object, property, computed } = node
+    if computed
+      (ev object)[ev property]
+    else
+      (ev object)[property.name]
+
+  Identifier: (node) ->
+    global[node.name] ? throw new Error "Undefined identifier [#{node.name}]."
+
+  Literal: (node) ->
+    node.value
+
+evaluate = ev = (node) ->
+  if node
+    if node.type
+      if ev_ = Evaluators[node.type]
+        ev_ node
+      else
+        throw new Error "Cannot evaluate #{node.type}."
+    else
+      throw new Error "Error evaluating node [#{node}]: no type found."
+  else
+    throw new Error "Error evaluating node: null."
+
 ###
 
 Laundry list
@@ -1197,28 +1325,28 @@ SExpr = (context) ->
       sexpr_call op, (sexpr left), (sexpr right)
 
     ConditionalExpression: (node) ->
-     { test, consequent, alternate } = node
-     sexpr_call 'ifelse', (sexpr test), (sexpr consequent), (sexpr alternate)
+      { test, consequent, alternate } = node
+      sexpr_call 'ifelse', (sexpr test), (sexpr consequent), (sexpr alternate)
 
     NewExpression: null
 
     CallExpression: (node) ->
-      { callee } = node
+      { callee, arguments: args } = node
       if callee.type is Identifier
         func = context.lookup callee.name
         if func?.isFunction
           if func.isGlobal
             if func.apply
               try
-                func.apply sexpr, context, node.arguments
+                func.apply sexpr, context, args
               catch error
                 throw new Error "#{callee.name}(): #{error.message}"
             else
               # Built-in function
-              sexpr_apply func.name, (sexpr arg for arg in node.arguments)
+              sexpr_apply func.name, (sexpr arg for arg in args)
           else
             # UDF
-            sexpr_apply (sexpr_lookup func.name), (sexpr arg for arg in node.arguments)
+            sexpr_apply (sexpr_lookup func.name), (sexpr arg for arg in args)
         else
           throw new Error "Not a function: [#{callee.name}]"
       else
@@ -1350,21 +1478,23 @@ getFunctionExpression = (node) ->
 
   statement.argument
 
-transpile = (symbols, lambda) ->
-
+parse = (lambda) ->
   unless _.isFunction lambda
     throw new Error "Not a function: [#{lambda}]"
 
   source = lambda.toString()
-
   program = esprima.parse "var _O_o_ = #{source}"
-  func = program.body[0].declarations[0].init  
+
+  source: source
+  func: func = program.body[0].declarations[0].init  
+  expression: getFunctionExpression func
+
+transpile = (symbols, lambda) ->
+  { source, func, expression } = parse lambda
 
   params = func.params
   if params.length isnt symbols.length
     throw new Error "Invalid function arity: expected [#{expectedArity}], found [#{params.length}] at #{source}"
-
-  expression = getFunctionExpression func
 
   sexpr = SExpr context = Context Funcs, symbols, params
   try
@@ -1426,5 +1556,7 @@ toVector = (array) ->
 # (cbind %target_frame "k1" "k2" ...)
 
 module.exports =
+  parse: parse
   transpile: transpile
+  evaluate: evaluate
   toVector: toVector
