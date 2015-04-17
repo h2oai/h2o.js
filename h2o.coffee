@@ -970,7 +970,7 @@ lib.connect = (host='http://localhost:54321') ->
   Square each value in a frame and sum by row
   ```
   seq = h2o.apply [], -> sequence 5
-  frame = h2o.apply seq, (seq) -> combine seq, seq + 1, seq + 2, seq + 3, seq + 4
+  frame = h2o.apply seq, (seq) -> combine seq, seq, seq, seq, seq
   h2o.apply frame, ((a) -> map a, (b) -> sum b), (error, result) ->
     if error
       fail
@@ -1007,7 +1007,7 @@ lib.connect = (host='http://localhost:54321') ->
   Square each value in a frame and sum by column
   ```
   seq = h2o.apply [], -> sequence 5
-  frame = h2o.apply seq, (seq) -> combine seq, seq + 1, seq + 2, seq + 3, seq + 4
+  frame = h2o.apply seq, (seq) -> combine seq, seq, seq, seq, seq
   h2o.apply frame, ((a) -> collect a, (b) -> sum b ), (error, result) ->
     if error
       fail
