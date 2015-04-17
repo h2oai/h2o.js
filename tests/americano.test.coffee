@@ -406,6 +406,18 @@ testCases = [
     (a) -> replicate a, 1000
   ]
   [
+    'clone'
+    '(rename %A "New Name")'
+    ['A']
+    (a) -> clone a, "New Name"
+  ]
+  [
+    'rename'
+    '(colnames= %A (slist "foo" "bar" "baz"))'
+    ['A']
+    (a) -> rename a, labels 'foo', 'bar', 'baz'
+  ]
+  [
     'to'
     '(: #10 #20)'
     []
@@ -424,31 +436,31 @@ testCases = [
     -> vector 7, 8, 9, (to 10, 20), 21
   ]
   [
-    'sequence() fails without args'
+    'sequence$0 fails'
     null
     []
     -> sequence()
   ]
   [
-    'sequence 10'
+    'sequence$1'
     '(seq_len #10)'
     []
     -> sequence 10
   ]
   [
-    'sequence 10, 20'
+    'sequence$2'
     '(seq #10 #20 #1)'
     []
     -> sequence 10, 20
   ]
   [
-    'sequence 10, 20, 2'
+    'sequence$3'
     '(seq #10 #20 #2)'
     []
     -> sequence 10, 20, 2
   ]
   [
-    'sequence() fails with 3+ args'
+    'sequence$4 fails'
     null
     []
     -> sequence 10, 20, 30, 40
@@ -464,6 +476,102 @@ testCases = [
     '(t %A)'
     ['A']
     (a) -> transpose a
+  ]
+  [
+    'sum$0 fails'
+    null
+    ['A']
+    (a) -> sum()
+  ]
+  [
+    'sum$1'
+    '(sum %A %TRUE)'
+    ['A']
+    (a) -> sum a
+  ]
+  [
+    'sum$2'
+    '(sum %A %FALSE)'
+    ['A']
+    (a) -> sum a, no
+  ]
+  [
+    'sum$3 fails'
+    null
+    ['A']
+    (a) -> sum a, no, 'why?'
+  ]
+  [
+    'min$0 fails'
+    null
+    ['A']
+    (a) -> min()
+  ]
+  [
+    'min$1'
+    '(min %A %TRUE)'
+    ['A']
+    (a) -> min a
+  ]
+  [
+    'min$2'
+    '(min %A %FALSE)'
+    ['A']
+    (a) -> min a, no
+  ]
+  [
+    'min$3 fails'
+    null
+    ['A']
+    (a) -> min a, no, 'why?'
+  ]
+  [
+    'max$0 fails'
+    null
+    ['A']
+    (a) -> max()
+  ]
+  [
+    'max$1'
+    '(max %A %TRUE)'
+    ['A']
+    (a) -> max a
+  ]
+  [
+    'max$2'
+    '(max %A %FALSE)'
+    ['A']
+    (a) -> max a, no
+  ]
+  [
+    'max$3 fails'
+    null
+    ['A']
+    (a) -> max a, no, 'why?'
+  ]
+  [
+    'median$0 fails'
+    null
+    ['A']
+    (a) -> median()
+  ]
+  [
+    'median$1'
+    '(median %A %TRUE)'
+    ['A']
+    (a) -> median a
+  ]
+  [
+    'median$2'
+    '(median %A %FALSE)'
+    ['A']
+    (a) -> median a, no
+  ]
+  [
+    'median$3 fails'
+    null
+    ['A']
+    (a) -> median a, no, 'why?'
   ]
   [
     'if-else'

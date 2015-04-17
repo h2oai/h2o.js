@@ -786,6 +786,13 @@ TODO ROp
 TODO O
 ###
 
+match_ = (pattern) ->
+  (sexpr, context, args) ->
+    f = pattern[args.length]
+    if f
+      f.apply null, [sexpr, context].concat args
+    else
+      throw new Error "Expected [#{(_.keys pattern).join ', '}] args, found [#{args.length}]"
 
 #TODO need type attributes scalar -> scalar; vector -> scalar; etc.
 Funcs =
@@ -882,17 +889,33 @@ Funcs =
 
   # Computations / Descriptive Statistics
   max:
-    name: 'max'
+    apply: match_
+      1: (sexpr, context, frame) ->
+        sexpr_call 'max', (sexpr frame), (sexpr_boolean yes)
+      2: (sexpr, context, frame, narm) -> 
+        sexpr_call 'max', (sexpr frame), (sexpr narm)
   min:
-    name: 'min'
-  sum:
-    name: 'sum'
+    apply: match_
+      1: (sexpr, context, frame) ->
+        sexpr_call 'min', (sexpr frame), (sexpr_boolean yes)
+      2: (sexpr, context, frame, narm) -> 
+        sexpr_call 'min', (sexpr frame), (sexpr narm)
+  sum: 
+    apply: match_
+      1: (sexpr, context, frame) ->
+        sexpr_call 'sum', (sexpr frame), (sexpr_boolean yes)
+      2: (sexpr, context, frame, narm) -> 
+        sexpr_call 'sum', (sexpr frame), (sexpr narm)
+  median:
+    apply: match_
+      1: (sexpr, context, frame) ->
+        sexpr_call 'median', (sexpr frame), (sexpr_boolean yes)
+      2: (sexpr, context, frame, narm) -> 
+        sexpr_call 'median', (sexpr frame), (sexpr narm)
   std:
     name: 'sd'
   mean:
     name: 'mean'
-  median:
-    name: 'median'
   variance:
     name: 'var'
 
@@ -933,6 +956,10 @@ Funcs =
   transpose:
     name: 't'
 
+  clone:
+    name: 'rename'
+  rename: 
+    name: 'colnames='
   length:
     name: 'nrow'
   width:
@@ -951,60 +978,39 @@ Funcs =
     name: 'rep_len'
   labels:
     name: 'slist' # string arrays
-
   select:
-    apply: (sexpr, context, args) ->
-      switch args.length
-        when 2
-          sexpr_call '[', (sexpr args[0]), (sexpr null), (sexpr args[1])
-        else
-          throw new Error "select: Invalid number of arguments, expected 2 , found #{args.length}"
-
+    apply: match_
+      2: (sexpr, context, frame, slicer) ->
+        sexpr_call '[', (sexpr frame), (sexpr null), (sexpr slicer)
   filter:
-    apply: (sexpr, context, args) ->
-      switch args.length
-        when 2
-          sexpr_call '[', (sexpr args[0]), (sexpr args[1]), (sexpr null)
-        else
-          throw new Error "filter: Invalid number of arguments, expected 2 , found #{args.length}"
-
+    apply: match_
+      2: (sexpr, context, frame, slicer) ->
+        sexpr_call '[', (sexpr frame), (sexpr slicer), (sexpr null)
   slice:
-    apply: (sexpr, context, args) ->
-      switch args.length
-        when 3
-          sexpr_apply '[', args.map sexpr
-        else
-          throw new Error "slice: Invalid number of arguments, expected 3 , found #{args.length}"
-
+    apply: match_
+      3: (sexpr, context, frame, rows, cols) ->
+        sexpr_call '[', (sexpr frame), (sexpr rows), (sexpr cols)
   sequence:
-    apply: (sexpr, context, args) ->
-      switch args.length
-        when 1
-          sexpr_call 'seq_len', sexpr args[0]
-        when 2
-          sexpr_call 'seq', (sexpr args[0]), (sexpr args[1]), (sexpr_number 1)
-        when 3
-          sexpr_apply 'seq', args.map sexpr
-        else
-          throw new Error "sequence: Invalid number of arguments, expected 1 - 3, found #{args.length}"
-
+    apply: match_
+      1: (sexpr, context, length) ->
+        sexpr_call 'seq_len', sexpr length
+      2: (sexpr, context, begin, end) ->
+        sexpr_call 'seq', (sexpr begin), (sexpr end), (sexpr_number 1)
+      3: (sexpr, context, begin, end, step) ->
+        sexpr_call 'seq', (sexpr begin), (sexpr end), (sexpr step)
   map:
-    apply: (sexpr, context, args) ->
-      throw new Error "map: Expected 2 args, found #{args.length}" if args.length isnt 2
-      [ object, func ] = args
-      throw new Error "map: Expected arg #2 to be #{FunctionExpression}" if func.type isnt FunctionExpression
-      throw new Error "map: Expected #{FunctionExpression} to have 1 parameter" if func.params.length isnt 1
-
-      sexpr_call 'apply', (sexpr object), (sexpr_number 1), sexpr_lookup collectFunc sexpr, context, func
+    apply: match_
+      2: (sexpr, context, frame, func) ->
+        throw new Error "Expected #{FunctionExpression}" if func.type isnt FunctionExpression
+        throw new Error "map: Expected #{FunctionExpression} to have 1 parameter" if func.params.length isnt 1
+        sexpr_call 'apply', (sexpr frame), (sexpr_number 1), sexpr_lookup collectFunc sexpr, context, func
 
   collect:
-    apply: (sexpr, context, args) ->
-      throw new Error "collect: Expected 2 args, found #{args.length}" if args.length isnt 2
-      [ object, func ] = args
-      throw new Error "collect: Expected arg #2 to be #{FunctionExpression}" if func.type isnt FunctionExpression
-      throw new Error "collect: Expected #{FunctionExpression} to have 1 parameter" if func.params.length isnt 1
-
-      sexpr_call 'apply', (sexpr object), (sexpr_number 2), sexpr_lookup collectFunc sexpr, context, func
+    apply: match_
+      2: (sexpr, context, frame, func) ->
+        throw new Error "Expected #{FunctionExpression}" if func.type isnt FunctionExpression
+        throw new Error "map: Expected #{FunctionExpression} to have 1 parameter" if func.params.length isnt 1
+        sexpr_call 'apply', (sexpr frame), (sexpr_number 2), sexpr_lookup collectFunc sexpr, context, func
 
 do ->
   for funcName, func of Funcs
@@ -1203,7 +1209,10 @@ SExpr = (context) ->
         if func?.isFunction
           if func.isGlobal
             if func.apply
-              func.apply sexpr, context, node.arguments
+              try
+                func.apply sexpr, context, node.arguments
+              catch error
+                throw new Error "#{callee.name}(): #{error.message}"
             else
               # Built-in function
               sexpr_apply func.name, (sexpr arg for arg in node.arguments)
