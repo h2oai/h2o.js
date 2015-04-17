@@ -180,6 +180,10 @@ type Factor
 A reference to a `ColV3` object. A `Vector` can be thought of as a pointer to the result of computations such as `map()`, `reduce()`, `combine()`, `append()`, etc. You can dereference a `Vector` using the `get()` function, which will yield a `ColV3`. A `ColV3` can be substituted in place of a `Frame` in all functions that accept frames.
 ###
 ###
+type Labels
+TODO
+###
+###
 type Indices
 TODO
 ###
@@ -1584,6 +1588,58 @@ lib.connect = (host='http://localhost:54321') ->
       pass
   ###
 
+  ###
+  function rename
+  Rename a frame's columns.
+  ---
+  frame indices names -> Frame
+  ---
+  frame: Frame
+    The target frame.
+  indices: Indices
+    The indices of the columns to be renamed.
+  names: Labels
+    The column labels. The number of labels must match the number of indices.
+  ---
+  Rename one column in a frame
+  Rename one column in a frame
+  ```
+  seq = h2o.apply [], -> sequence 5
+  sequences = h2o.apply seq, (a) ->
+    rename combine(a, a + 1, a + 2, a + 3, a + 4), 3, 'foo'
+  sequences (error, result) ->
+    if error
+      fail
+    else
+      h2o.print.columns result.col_names, result.head
+      pass
+  ---
+  Rename multiple columns in a frame
+  Rename multiple columns in a frame
+  ```
+  seq = h2o.apply [], -> sequence 5
+  sequences = h2o.apply seq, (a) ->
+    rename combine(a, a + 1, a + 2, a + 3, a + 4), at(1, 3), labels 'foo', 'bar'
+  sequences (error, result) ->
+    if error
+      fail
+    else
+      h2o.print.columns result.col_names, result.head
+      pass
+  ---
+  Rename all columns in a frame
+  Rename all columns in a frame
+  ```
+  seq = h2o.apply [], -> sequence 5
+  sequences = h2o.apply seq, (a) ->
+    rename combine(a, a + 1, a + 2, a + 3, a + 4), to(0, 4), labels 'foo', 'bar', 'baz', 'qux', 'quux'
+  sequences (error, result) ->
+    if error
+      fail
+    else
+      h2o.print.columns result.col_names, result.head
+      pass
+  ###
   # Files
   importFile: importFile
   importFiles: importFiles
