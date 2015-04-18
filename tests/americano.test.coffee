@@ -277,7 +277,7 @@ transpileTestCases = [
     'random() with seed'
     '(h2o.runif %A #42)'
     ['A']
-    (a) -> random a, 42
+    (a) -> random a, seed: 42
   ]
   [
     'Fails on select using float index'
@@ -572,6 +572,36 @@ transpileTestCases = [
     null
     ['A']
     (a) -> median a, no, 'why?'
+  ]
+  [
+    'scale$1'
+    '(scale %A %TRUE %TRUE)'
+    ['A']
+    (a) -> scale a
+  ]
+  [
+    'scale$2, center=false'
+    '(scale %A %FALSE %TRUE)'
+    ['A']
+    (a) -> scale a, center: no
+  ]
+  [
+    'scale$2, scale=false'
+    '(scale %A %TRUE %FALSE)'
+    ['A']
+    (a) -> scale a, scale: no
+  ]
+  [
+    'scale$2, center=false, scale=false'
+    '(scale %A %FALSE %FALSE)'
+    ['A']
+    (a) -> scale a, center: no, scale: no
+  ]
+  [
+    'scale$2, center=true, scale=true'
+    '(scale %A %TRUE %TRUE)'
+    ['A']
+    (a) -> scale a, center: yes, scale: yes
   ]
   [
     'if-else'

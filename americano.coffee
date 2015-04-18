@@ -951,15 +951,12 @@ Funcs =
   pow:
     name: '^'
   random:
-    apply: (sexpr, context, args) ->
-      name = 'h2o.runif'
-      switch args.length
-        when 1
-          sexpr_call name, (sexpr args[0]), sexpr_number -1
-        when 2
-          sexpr_apply name, args.map sexpr
-        else
-          throw new Error "random: Invalid number of arguments, expected 2 , found #{args.length}"
+    apply: match_
+      1: (sexpr, context, frame) ->
+        sexpr_call 'h2o.runif', (sexpr frame), sexpr_number -1
+      2: (sexpr, context, frame, opts) ->
+        dict = ast_dictionary opts, seed: ast_number -1
+        sexpr_call 'h2o.runif', (sexpr frame), (sexpr dict.seed)
   round:
     name: 'round' # round(num, digits)
   sin:
@@ -1019,26 +1016,26 @@ Funcs =
   max:
     apply: match_
       1: (sexpr, context, frame) ->
-        sexpr_call 'max', (sexpr frame), (sexpr_boolean yes)
+        sexpr_call 'max', (sexpr frame), sexpr_true()
       2: (sexpr, context, frame, narm) -> 
         sexpr_call 'max', (sexpr frame), (sexpr narm)
   min:
     apply: match_
       1: (sexpr, context, frame) ->
-        sexpr_call 'min', (sexpr frame), (sexpr_boolean yes)
+        sexpr_call 'min', (sexpr frame), sexpr_true()
       2: (sexpr, context, frame, narm) -> 
         sexpr_call 'min', (sexpr frame), (sexpr narm)
-  sum: 
+  sum:
     apply: match_
       1: (sexpr, context, frame) ->
-        sexpr_call 'sum', (sexpr frame), (sexpr_boolean yes)
-      2: (sexpr, context, frame, narm) -> 
+        sexpr_call 'sum', (sexpr frame), sexpr_true()
+      2: (sexpr, context, frame, narm) -> #TODO accept opts
         sexpr_call 'sum', (sexpr frame), (sexpr narm)
   median:
     apply: match_
       1: (sexpr, context, frame) ->
-        sexpr_call 'median', (sexpr frame), (sexpr_boolean yes)
-      2: (sexpr, context, frame, narm) -> 
+        sexpr_call 'median', (sexpr frame), sexpr_true()
+      2: (sexpr, context, frame, narm) -> #TODO accept opts
         sexpr_call 'median', (sexpr frame), (sexpr narm)
   std:
     name: 'sd'
@@ -1106,6 +1103,15 @@ Funcs =
     name: 'rep_len'
   labels:
     name: 'slist' # string arrays
+  scale:
+    apply: match_
+      1: (sexpr, context, frame) ->
+        sexpr_call 'scale', (sexpr frame), sexpr_true(), sexpr_true()
+      2: (sexpr, context, frame, opts) ->
+        dict = ast_dictionary opts,
+          center: ast_boolean yes
+          scale: ast_boolean yes
+        sexpr_call 'scale', (sexpr frame), (sexpr dict.center), (sexpr dict.scale)
   select:
     apply: match_
       2: (sexpr, context, frame, slicer) ->
