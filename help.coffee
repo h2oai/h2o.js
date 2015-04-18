@@ -152,17 +152,27 @@ exportExamples = (outputDir, functions) ->
 
   write (path.join outputDir, 'index.js'), compileCoffee commands.join EOL
 
-printTypes = (types) ->
+printType = (type) ->
+  [ table, tbody, tr, td, code ] = template 'table', 'tbody', 'tr', 'td', 'code'
 
-  content = types
-    .map (type) ->
-      [
-        bookmark '', "type-#{type.name}"
-        h2 type.name
-        marked type.description
+  content = [
+    bookmark '', "type-#{type.name}"
+    h2 type.name
+    marked type.description
+  ]
+
+  if type.properties.length
+    content.push table tbody type.properties.map (property) ->
+      tr [
+        td code property.name
+        td code if property.isFunction then printFuncUsage property.type else linkToType property.type.type
+        td stripParagraph marked property.description
       ]
 
-  (_.flatten content).join EOL
+  content
+
+printTypes = (types) ->
+  (_.flatten types.map printType).join EOL
 
 rawTypeMappings =
   'boolean': 'Boolean'
