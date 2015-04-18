@@ -92,12 +92,13 @@ parseFunc = (headerBlock, syntaxBlock, paramsBlock, exampleBlocks...) ->
   parameters: parseFuncParams paramsBlock
   examples: exampleBlocks.map parseFuncExample
 
-parseType = (headerBlock) ->
+parseType = (headerBlock, propertiesBlock) ->
   [ name, description ] = parseHeader headerBlock
 
   type: 'type'
   name: name
-  description: description
+  description: if description?.trim() then description else 'TODO'
+  properties: if propertiesBlock?.trim() then parseFuncParams propertiesBlock else []
 
 parseMetadata = (source, parse) ->
   parse.apply null, source.split(/\-{3,}/g).map (block) -> block.trim()
