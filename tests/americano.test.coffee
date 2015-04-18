@@ -628,6 +628,18 @@ transpileTestCases = [
     (a) -> scale a, center: yes, scale: yes
   ]
   [
+    'quantile$1'
+    '(quantile %A (dlist #0.01 #0.1 #0.25 #0.333 #0.5 #0.667 #0.75 #0.9 #0.99))'
+    ['A']
+    (a) -> quantile a
+  ]
+  [
+    'quantile$2, probabilities=[...]'
+    '(quantile %A (dlist #0.01 #0.1 #0.25))'
+    ['A']
+    (a) -> quantile a, probabilities: [ 0.01, 0.1, 0.25 ]
+  ]
+  [
     'if-else'
     '(ifelse (l %A %B) (/ %A #42) (* %B #42))'
     ['A', 'B']

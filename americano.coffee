@@ -789,6 +789,9 @@ asStrings = (array) ->
       '' + element
     else
       undefined
+
+defaultQuantileProbabilities = [ 0.01, 0.1, 0.25, 0.333, 0.5, 0.667, 0.75, 0.9, 0.99 ]
+
 ###
 
 Laundry list
@@ -885,7 +888,7 @@ ASTMedian
 
 Misc
 ---------------
-TODO ASTSetLevel
+TODO ASTSetLevel: for factor columns, sets whole column to a single level in the domain
 TODO ASTMatch match(x, y): search for elements of x in y. returns 1-based indices.
 TODO ASTRename
 ASTSeq
@@ -1163,13 +1166,23 @@ Funcs =
         throw new Error "Expected #{FunctionExpression}" if func.type isnt FunctionExpression
         throw new Error "map: Expected #{FunctionExpression} to have 1 parameter" if func.params.length isnt 1
         sexpr_call 'apply', (sexpr frame), (sexpr_number 1), sexpr_lookup collectFunc sexpr, context, func
-
   collect:
     apply: match_
       2: (sexpr, context, frame, func) ->
         throw new Error "Expected #{FunctionExpression}" if func.type isnt FunctionExpression
         throw new Error "map: Expected #{FunctionExpression} to have 1 parameter" if func.params.length isnt 1
         sexpr_call 'apply', (sexpr frame), (sexpr_number 2), sexpr_lookup collectFunc sexpr, context, func
+  quantile:
+    apply: match_
+      1: (sexpr, context, frame) ->
+        sexpr_call 'quantile', (sexpr frame), (sexpr_doubles defaultQuantileProbabilities)
+      2: (sexpr, context, frame, opts) ->
+        dict = ast_dictionary opts
+        probabilities = if dict.probabilities
+          asDoubles evaluate dict.probabilities
+        else
+          defaultQuantileProbabilities
+        sexpr_call 'quantile', (sexpr frame), (sexpr_doubles probabilities)
 
 do ->
   for funcName, func of Funcs
