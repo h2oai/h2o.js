@@ -1204,6 +1204,25 @@ lib.connect = (host='http://localhost:54321') ->
   ###
 
   ###
+  function quantile
+  Compute sample quantiles corresponding to the given probabilities. The smallest observation corresponds to a probability of 0 and the largest to a probability of 1.
+  ---
+  frame -> Frame
+  frame options -> Frame
+  ---
+  frame: Frame
+    The source Frame.
+  options: QuantileOptions
+    Optional arguments.
+  ###
+  ###
+  type QuantileOptions
+  Optional arguments to [quantile()](#func-quantile)
+  ---
+  probabilities: [Number]
+    Array of probabilities with numbers between 0 and 1.
+  ###
+  ###
   function to
   Create a sequence of integers.
   ---
@@ -1511,6 +1530,7 @@ lib.connect = (host='http://localhost:54321') ->
       h2o.print.columns result.col_names, result.head
       pass
   ###
+
   # Files
   importFile: importFile
   importFiles: importFiles
