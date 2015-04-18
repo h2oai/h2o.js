@@ -652,6 +652,10 @@ Literal = 'Literal'
 #
 
 Evaluators =
+  ArrayExpression: (node) ->
+    for element in node.elements
+      ev element
+
   UnaryExpression: (node) ->
     { operator, prefix, argument } = node
     if prefix
@@ -772,6 +776,19 @@ evaluate = ev = (node) ->
   else
     throw new Error "Error evaluating node: null."
 
+asDoubles = (array) ->
+  for element in array
+    if _.isFinite element
+      element
+    else
+      undefined
+
+asStrings = (array) ->
+  for element in array
+    if element?
+      '' + element
+    else
+      undefined
 ###
 
 Laundry list
