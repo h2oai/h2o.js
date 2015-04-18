@@ -191,7 +191,6 @@ TODO
 type Span
 TODO
 ###
-
 lib.connect = (host='http://localhost:54321') ->
 
   request = connect host
@@ -1181,9 +1180,28 @@ lib.connect = (host='http://localhost:54321') ->
   # "min" #2 "ignore" "min_col3"
   # aggregate type, column index, na method, aggregate column name
 
-  groupBy = method (go) ->
-    go new Error 'Not implemented'
+  ###
+  function scale
+  Centers and/or scales the columns of a numeric frame.
+  ---
+  frame -> Frame
+  frame options -> Frame
+  ---
+  frame: Frame
+    The source Frame
+  options: ScaleOptions
+    Optional arguments
+  ###
 
+  ###
+  type ScaleOptions
+  Optional arguments to [scale()](#func-scale)
+  ---
+  center: Boolean
+    If center is `true` then centering is done by subtracting the column means (omitting NAs) from their corresponding columns, and if center is `false`, no centering is done. Default: `true`.
+  scale: Boolean
+    If scale is `true` then scaling is done by dividing the (centered) columns of x by their standard deviations if center is `true`, and the root mean square otherwise. If scale is `false`, no scaling is done. Default: `true`
+  ###
 
   ###
   function to
@@ -1550,7 +1568,6 @@ lib.connect = (host='http://localhost:54321') ->
   # Local
   apply: apply
   resolve: resolve
-  # groupBy: groupBy
 
   # Types
   error: H2OError
