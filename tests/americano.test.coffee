@@ -490,10 +490,16 @@ transpileTestCases = [
     (a) -> sum a
   ]
   [
-    'sum$2'
+    'sum$2 missing=remove'
     '(sum %A %FALSE)'
     ['A']
-    (a) -> sum a, no
+    (a) -> sum a, missing: 'remove'
+  ]
+  [
+    'sum$2 missing=?'
+    '(sum %A %TRUE)'
+    ['A']
+    (a) -> sum a, missing: '?'
   ]
   [
     'sum$3 fails'
@@ -514,10 +520,16 @@ transpileTestCases = [
     (a) -> min a
   ]
   [
-    'min$2'
+    'min$2 missing=remove'
     '(min %A %FALSE)'
     ['A']
-    (a) -> min a, no
+    (a) -> min a, missing: 'remove'
+  ]
+  [
+    'min$2 missing=?'
+    '(min %A %TRUE)'
+    ['A']
+    (a) -> min a, missing: '?'
   ]
   [
     'min$3 fails'
@@ -538,10 +550,16 @@ transpileTestCases = [
     (a) -> max a
   ]
   [
-    'max$2'
+    'max$2 missing=remove'
     '(max %A %FALSE)'
     ['A']
-    (a) -> max a, no
+    (a) -> max a, missing: 'remove'
+  ]
+  [
+    'max$2 missing=?'
+    '(max %A %TRUE)'
+    ['A']
+    (a) -> max a, missing: '?'
   ]
   [
     'max$3 fails'
@@ -562,10 +580,16 @@ transpileTestCases = [
     (a) -> median a
   ]
   [
-    'median$2'
+    'median$2 missing=remove'
     '(median %A %FALSE)'
     ['A']
-    (a) -> median a, no
+    (a) -> median a, missing: 'remove'
+  ]
+  [
+    'median$2 missing=?'
+    '(median %A %TRUE)'
+    ['A']
+    (a) -> median a, missing: '?'
   ]
   [
     'median$3 fails'

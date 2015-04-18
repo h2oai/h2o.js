@@ -1017,26 +1017,34 @@ Funcs =
     apply: match_
       1: (sexpr, context, frame) ->
         sexpr_call 'max', (sexpr frame), sexpr_true()
-      2: (sexpr, context, frame, narm) -> 
-        sexpr_call 'max', (sexpr frame), (sexpr narm)
+      2: (sexpr, context, frame, opts) -> 
+        dict = ast_dictionary opts
+        missing = if ast = dict.missing then evaluate ast else 'remove'
+        sexpr_call 'max', (sexpr frame), sexpr_boolean if missing is 'remove' then no else yes
   min:
     apply: match_
       1: (sexpr, context, frame) ->
         sexpr_call 'min', (sexpr frame), sexpr_true()
-      2: (sexpr, context, frame, narm) -> 
-        sexpr_call 'min', (sexpr frame), (sexpr narm)
+      2: (sexpr, context, frame, opts) -> 
+        dict = ast_dictionary opts
+        missing = if ast = dict.missing then evaluate ast else 'remove'
+        sexpr_call 'min', (sexpr frame), sexpr_boolean if missing is 'remove' then no else yes
   sum:
     apply: match_
       1: (sexpr, context, frame) ->
         sexpr_call 'sum', (sexpr frame), sexpr_true()
-      2: (sexpr, context, frame, narm) -> #TODO accept opts
-        sexpr_call 'sum', (sexpr frame), (sexpr narm)
+      2: (sexpr, context, frame, opts) ->
+        dict = ast_dictionary opts
+        missing = if ast = dict.missing then evaluate ast else 'remove'
+        sexpr_call 'sum', (sexpr frame), sexpr_boolean if missing is 'remove' then no else yes
   median:
     apply: match_
       1: (sexpr, context, frame) ->
         sexpr_call 'median', (sexpr frame), sexpr_true()
-      2: (sexpr, context, frame, narm) -> #TODO accept opts
-        sexpr_call 'median', (sexpr frame), (sexpr narm)
+      2: (sexpr, context, frame, opts) ->
+        dict = ast_dictionary opts
+        missing = if ast = dict.missing then evaluate ast else 'remove'
+        sexpr_call 'median', (sexpr frame), sexpr_boolean if missing is 'remove' then no else yes
   std:
     name: 'sd'
   mean:
@@ -1208,7 +1216,10 @@ ast_dictionary = (node, defaults) ->
     else
       throw new Error "Unsupported object property kind [#{kind}]"
 
-  _.defaults dictionary, defaults
+  if defaults
+    _.defaults dictionary, defaults
+  else
+    dictionary
 
 Call = (name) ->
   (args...) ->
