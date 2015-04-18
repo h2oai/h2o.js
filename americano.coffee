@@ -1176,6 +1176,34 @@ Ast = _.mapValues Asts, (build, type) ->
     ast.type = type
     ast
 
+ast_boolean = (value) ->
+  Ast.Literal value, if value then 'true' else 'false'
+
+ast_number = (value) ->
+  Ast.Literal value, "#{value}"
+
+ast_string = (value) ->
+  Ast.Literal value, JSON.stringify value
+
+ast_dictionary = (node, defaults) ->
+  throw new Error "Expected [#{ObjectExpression}], found [#{node.type}]." unless node.type is ObjectExpression
+
+  dictionary = {}
+  for property in node.properties
+    { key, value, kind } = property
+    if kind is 'init'
+      propertyName = if key.type is Identifier
+        key.name
+      else if key.type is Literal
+        "#{key.value}"
+      else
+        throw new Error "Unsupported object property key type [#{key.type}]"
+      dictionary[propertyName] = value
+    else
+      throw new Error "Unsupported object property kind [#{kind}]"
+
+  _.defaults dictionary, defaults
+
 Call = (name) ->
   (args...) ->
     Ast.CallExpression name, args
@@ -1196,7 +1224,11 @@ sexpr_number = (value) ->
   "##{value}"
 
 sexpr_boolean = (value) ->
-  if value then "%TRUE" else "%FALSE"
+  if value then sexpr_true() else sexpr_false()
+
+sexpr_true = -> "%TRUE"
+
+sexpr_false = -> "%FALSE"
 
 sexpr_null = ->
   '"null"'
